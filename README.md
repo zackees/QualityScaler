@@ -55,6 +55,7 @@ ruff check src/qualityscaler/cli.py tests
 
 ## Versions
 
+* `3.1.0` - Updated to upstream 3.1 with FFMPEG 6.1.1 support and UI/file information improvements.
 * `3.0.0` - Updated to upstream 3.0.0 ONNX/DirectML engine while preserving isolated runtime and lazy ONNX model downloads.
 * `2.13.0` - Updated to upstream 2.13 version while preserving isolated runtime and lazy model downloads.
 * `2.12.0` - Updated to upstream 2.12.0 version.
