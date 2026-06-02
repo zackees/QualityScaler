@@ -55,5 +55,6 @@ ruff check src/qualityscaler/cli.py tests
 
 ## Versions
 
+* `3.0.0` - Updated to upstream 3.0.0 ONNX/DirectML engine while preserving isolated runtime and lazy ONNX model downloads.
 * `2.13.0` - Updated to upstream 2.13 version while preserving isolated runtime and lazy model downloads.
 * `2.12.0` - Updated to upstream 2.12.0 version.
