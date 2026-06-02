@@ -18,6 +18,7 @@ nuitka==2.0.6
 numpy==1.26.4
 onnx==1.21.0
 onnxconverter-common==1.16.0
+onnxoptimizer==0.4.2
 onnxruntime-directml==1.23.0
 opencv-python-headless==4.11.0.86
 ordered-set==4.1.0
