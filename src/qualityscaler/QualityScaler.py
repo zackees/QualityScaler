@@ -47,8 +47,12 @@ from moviepy.video.io import ImageSequenceClip
 from download import download
 
 from onnx                 import load as onnx_load
-from onnxruntime          import InferenceSession as onnxruntime_inferenceSession
 from onnxconverter_common import convert_float_to_float16
+from onnxruntime          import (
+    InferenceSession as onnxruntime_inferenceSession,
+    SessionOptions   as onnxruntime_sessionOptions,
+    GraphOptimizationLevel as onnxruntime_graphOptimizationLevel,
+)
 
 from cv2 import (
     CAP_PROP_FPS,
@@ -116,13 +120,20 @@ def find_by_relative_path(relative_path: str) -> str:
     base_path = getattr(sys, '_MEIPASS', os_path_dirname(os_path_abspath(__file__)))
     return os_path_join(base_path, relative_path)
 
+def find_asset_path(*asset_names: str) -> str:
+    for asset_name in asset_names:
+        asset_path = find_by_relative_path(f"Assets{os_separator}{asset_name}")
+        if os_path_exists(asset_path):
+            return asset_path
+    return find_by_relative_path(f"Assets{os_separator}{asset_names[0]}")
+
 
 
 githubme   = "https://github.com/Djdefrag/QualityScaler"
 telegramme = "https://linktr.ee/j3ngystudio"
 
 app_name = "QualityScaler"
-version  = "3.6"
+version  = "3.7"
 
 app_name_color = "#DA70D6"
 dark_color     = "#080808"
@@ -130,14 +141,15 @@ dark_color     = "#080808"
 very_low_VRAM = 4
 low_VRAM      = 3
 medium_VRAM   = 2.2
-high_VRAM     = 0.65
+high_VRAM     = 0.6
 full_precision_vram_multiplier = 0.7
 
-IRCNN_models_list           = [ 'IRCNNx1' ]
+AI_LIST_SEPARATOR           = ['----']
+IRCNN_models_list           = [ 'IRCNN_Mx1', 'IRCNN_Lx1' ]
 SRVGGNetCompact_models_list = [ 'RealESR_Gx4', 'RealSRx4_Anime' ]
 RRDB_models_list            = [ 'BSRGANx4', 'BSRGANx2', 'RealESRGANx4' ]
 
-AI_models_list         = ( IRCNN_models_list + SRVGGNetCompact_models_list + RRDB_models_list )
+AI_models_list         = ( SRVGGNetCompact_models_list + AI_LIST_SEPARATOR + RRDB_models_list + AI_LIST_SEPARATOR + IRCNN_models_list )
 gpus_list              = [ 'GPU 1', 'GPU 2', 'GPU 3', 'GPU 4' ]
 image_extension_list   = [ '.png', '.jpg', '.bmp', '.tiff' ]
 video_extension_list   = [ '.mp4 (x264)', '.mp4 (x265)', '.avi' ]
@@ -157,9 +169,7 @@ default_resize_factor     = str(50)
 default_VRAM_limiter      = str(8)
 default_cpu_number        = str(int(os_cpu_count()/2))
 
-FFMPEG_EXE_PATH   = find_by_relative_path(f"Assets{os_separator}ffmpeg.exe")
-EXIFTOOL_EXE_PATH = find_by_relative_path(f"Assets{os_separator}exiftool.exe")
-FRAMES_FOR_CPU    = 30
+FRAMES_FOR_CPU = 30
 
 COMPLETED_STATUS = "Completed"
 ERROR_STATUS     = "Error"
@@ -205,6 +215,9 @@ if not os_path_exists(ASSETS_TARGET_DIR):
     download(ASSETS_ZIP_URL, ASSETS_TARGET_ZIP, replace = True, kind = "file", timeout=60 * 5)
     shutil_unpack_archive(ASSETS_TARGET_ZIP, ASSETS_TARGET_DIR)
 
+FFMPEG_EXE_PATH   = find_asset_path("ffmpeg.exe")
+EXIFTOOL_EXE_PATH = find_asset_path("exiftool.exe", "exiftool_12.70.exe", "exiftool_12.68.exe")
+
 
 
 # AI -------------------
@@ -233,6 +246,9 @@ def load_AI_model(
     ensure_AI_model_file(AI_model_path)
     AI_model_loaded = onnx_load(AI_model_path)
 
+    sess_options = onnxruntime_sessionOptions()
+    sess_options.graph_optimization_level = onnxruntime_graphOptimizationLevel.ORT_ENABLE_EXTENDED
+
     match selected_gpu:
         case 'GPU 1':
             backend = [('DmlExecutionProvider', {"device_id": "0"})]
@@ -251,7 +267,8 @@ def load_AI_model(
 
     AI_model = onnxruntime_inferenceSession(
         path_or_bytes = AI_model_loaded.SerializeToString(),
-        providers     = backend
+        providers     = backend,
+        sess_options  = sess_options
     )
 
     return AI_model
@@ -643,12 +660,11 @@ class ScrollableImagesTextFrame_upscaler(CTkScrollableFrame):
             cap.release()
 
             video_name = str(file_path.split("/")[-1])
-
             file_icon = self.extract_file_icon(file_path)
 
-            if self.resize_factor == 0:
+            if self.resize_factor == 0 or self.upscale_factor == 0:
                 file_infos = (f"{video_name}\n"
-                              f"{minutes}m:{round(seconds)}s • {num_frames}frames • {width}x{height}\n")
+                              f"{minutes}m:{round(seconds)}s - {num_frames}frames - {width}x{height}\n")
             else:
                 resized_height = int(height * (self.resize_factor/100))
                 resized_width  = int(width * (self.resize_factor/100))
@@ -657,8 +673,8 @@ class ScrollableImagesTextFrame_upscaler(CTkScrollableFrame):
                 upscaled_width  = int(resized_width * self.upscale_factor)
 
                 file_infos = (f"{video_name}\n"
-                              f"{minutes}m:{round(seconds)}s • {num_frames}frames • {width}x{height}\n"
-                              f"AI input ({self.resize_factor}%) {resized_width}x{resized_height} ➜ {upscaled_width}x{upscaled_height}")
+                              f"{minutes}m:{round(seconds)}s - {num_frames}frames - {width}x{height}\n"
+                              f"AI input ({self.resize_factor}%) {resized_width}x{resized_height} -> {upscaled_width}x{upscaled_height}")
 
         else:
             image_name    = str(file_path.split("/")[-1])
@@ -666,7 +682,7 @@ class ScrollableImagesTextFrame_upscaler(CTkScrollableFrame):
 
             file_icon = self.extract_file_icon(file_path)
 
-            if self.resize_factor == 0:
+            if self.resize_factor == 0 or self.upscale_factor == 0:
                 file_infos = (f"{image_name}\n"
                               f"Resolution {width}x{height}\n")
             else:
@@ -678,7 +694,7 @@ class ScrollableImagesTextFrame_upscaler(CTkScrollableFrame):
 
                 file_infos = (f"{image_name}\n"
                               f"Resolution {width}x{height}\n"
-                              f"AI input ({self.resize_factor}%) {resized_width}x{resized_height} ➜ {upscaled_width}x{upscaled_height}")
+                              f"AI input ({self.resize_factor}%) {resized_width}x{resized_height} -> {upscaled_width}x{upscaled_height}")
 
         return file_infos, file_icon
 
@@ -689,10 +705,7 @@ def update_file_widget(a, b, c) -> None:
     except:
         return
 
-    global selected_AI_model
-    if   'x1' in selected_AI_model: upscale_factor = 1
-    elif 'x2' in selected_AI_model: upscale_factor = 2
-    elif 'x4' in selected_AI_model: upscale_factor = 4
+    upscale_factor = get_upscale_factor()
 
     try:
         resize_factor = int(float(str(selected_resize_factor.get())))
@@ -925,14 +938,11 @@ def calculate_num_tiles(file: numpy_ndarray, max_tiles_resolution: int) -> tuple
 # File Utils functions ------------------------
 
 def remove_dir(name_dir: str) -> None:
-    if os_path_exists(name_dir):
-        remove_directory(name_dir)
+    if os_path_exists(name_dir): remove_directory(name_dir)
 
 def create_dir(name_dir: str) -> None:
-    if os_path_exists(name_dir):
-        remove_directory(name_dir)
-    if not os_path_exists(name_dir):
-        os_makedirs(name_dir, mode=0o777)
+    if os_path_exists(name_dir):     remove_directory(name_dir)
+    if not os_path_exists(name_dir): os_makedirs(name_dir, mode=0o777)
 
 def stop_thread() -> None:
     stop = 1 + "x"
@@ -1072,8 +1082,16 @@ def video_reconstruction_by_frames(
             selected_video_extension = '.avi'
             codec = 'png'
 
-    output_path = prepare_output_video_filename(video_path, selected_output_path, selected_AI_model, resize_factor, selected_video_extension, selected_interpolation_factor)
-    frame_rate  = get_video_fps(video_path)
+    output_path = prepare_output_video_filename(
+        video_path,
+        selected_output_path,
+        selected_AI_model,
+        resize_factor,
+        selected_video_extension,
+        selected_interpolation_factor
+    )
+
+    frame_rate = get_video_fps(video_path)
 
     clip = ImageSequenceClip.ImageSequenceClip(
         sequence = frames_upscaled_list,
@@ -1665,8 +1683,22 @@ def upscale_video(
     num_tiles_x = None
     num_tiles_y = None
 
-    target_directory = prepare_output_video_frames_directory_name(video_path, selected_output_path, selected_AI_model, resize_factor, selected_interpolation_factor)
-    frame_list_paths, audio_path = extract_video_frames_and_audio(processing_queue, file_number, target_directory, video_path, cpu_number)
+    target_directory = prepare_output_video_frames_directory_name(
+        video_path,
+        selected_output_path,
+        selected_AI_model,
+        resize_factor,
+        selected_interpolation_factor
+    )
+
+    frame_list_paths, audio_path = extract_video_frames_and_audio(
+        processing_queue,
+        file_number,
+        target_directory,
+        video_path,
+        cpu_number
+    )
+
     first_frame      = resize_image(image_read(frame_list_paths[0]), resize_factor)
     need_tiles       = file_need_tilling(first_frame, tiles_resolution)
     target_height, target_width = get_upscaled_image_shape(first_frame, upscale_factor)
@@ -1798,19 +1830,19 @@ def upscale_video_frames_multithreading(
     # INTERNAL FUNCTION
 
     def upscale_single_video_frame_async(
-        processing_queue: multiprocessing_Queue,
-        file_number: int,
-        multiframes_number: int,
-        selected_AI_model: str,
-        selected_gpu: str,
-        selected_half_precision: bool,
-        how_many_frames: int,
-        frame_list_paths: list[str],
-        upscaled_frame_list_paths: list[str],
-        resize_factor: int,
-        selected_interpolation: bool,
-        selected_interpolation_factor: float,
-        ) -> None:
+            processing_queue: multiprocessing_Queue,
+            file_number: int,
+            multiframes_number: int,
+            selected_AI_model: str,
+            selected_gpu: str,
+            selected_half_precision: bool,
+            how_many_frames: int,
+            frame_list_paths: list[str],
+            upscaled_frame_list_paths: list[str],
+            resize_factor: int,
+            selected_interpolation: bool,
+            selected_interpolation_factor: float,
+            ) -> None:
 
         global processed_frames_async
         global frame_processing_times_async
@@ -1908,36 +1940,40 @@ def user_input_checks() -> bool:
     global resize_factor
     global cpu_number
 
-    is_ready = True
-
     # Selected files
     try: selected_file_list = scrollable_frame_file_list.get_selected_file_list()
     except:
         info_message.set("Please select a file")
-        is_ready = False
+        return False
 
     if len(selected_file_list) <= 0:
         info_message.set("Please select a file")
-        is_ready = False
+        return False
+
+
+    # AI model
+    if selected_AI_model == AI_LIST_SEPARATOR[0]:
+        info_message.set("Please select the AI model")
+        return False
 
 
     # File resize factor
     try: resize_factor = int(float(str(selected_resize_factor.get())))
     except:
         info_message.set("Resize % must be a numeric value")
-        is_ready = False
+        return False
 
     if resize_factor > 0: resize_factor = resize_factor/100
     else:
         info_message.set("Resize % must be a value > 0")
-        is_ready = False
+        return False
 
 
     # Tiles resolution
     try: tiles_resolution = 100 * int(float(str(selected_VRAM_limiter.get())))
     except:
         info_message.set("VRAM/RAM value must be a numeric value")
-        is_ready = False
+        return False
 
     if tiles_resolution > 0:
         if selected_AI_model in RRDB_models_list:
@@ -1957,22 +1993,22 @@ def user_input_checks() -> bool:
 
     else:
         info_message.set("VRAM/RAM value must be > 0")
-        is_ready = False
+        return False
 
 
     # Cpu number
     try: cpu_number = int(float(str(selected_cpu_number.get())))
     except:
         info_message.set("Cpu number must be a numeric value")
-        is_ready = False
+        return False
 
     if cpu_number <= 0:
         info_message.set("Cpu number value must be > 0")
-        is_ready = False
-    else: cpu_number = int(cpu_number)
+        return False
+    else:
+        cpu_number = int(cpu_number)
 
-
-    return is_ready
+    return True
 
 def show_error_message(exception: str) -> None:
     messageBox_title    = "Upscale error"
@@ -1986,6 +2022,15 @@ def show_error_message(exception: str) -> None:
         default_value = None,
         option_list = [messageBox_text]
     )
+
+def get_upscale_factor() -> int:
+    global selected_AI_model
+    if AI_LIST_SEPARATOR[0] in selected_AI_model: upscale_factor = 0
+    elif 'x1' in selected_AI_model: upscale_factor = 1
+    elif 'x2' in selected_AI_model: upscale_factor = 2
+    elif 'x4' in selected_AI_model: upscale_factor = 4
+
+    return upscale_factor
 
 def open_files_action():
     info_message.set("Selecting files")
@@ -2001,10 +2046,7 @@ def open_files_action():
     if supported_files_counter > 0:
         global scrollable_frame_file_list
 
-        global selected_AI_model
-        if   'x1' in selected_AI_model: upscale_factor = 1
-        elif 'x2' in selected_AI_model: upscale_factor = 2
-        elif 'x4' in selected_AI_model: upscale_factor = 4
+        upscale_factor = get_upscale_factor()
 
         try:
             resize_factor = int(float(str(selected_resize_factor.get())))
@@ -2100,7 +2142,7 @@ def open_info_output_path():
     option_list = [
         "\n The default path is defined by the input files."
         + "\n For example uploading a file from the Download folder,"
-        + "\n the app will save the upscaled files in the Download folder \n",
+        + "\n the app will save the generated files in the Download folder \n",
 
         " Otherwise it is possible to select the desired path using the SELECT button",
     ]
@@ -2118,20 +2160,21 @@ def open_info_AI_model():
         "\n IRCNN (2017) - Very simple and lightweight AI architecture\n" +
         " Only denoising (no upscaling)\n" +
         " Recommended for both image/video denoising\n" +
-        "  • IRCNNx1\n",
+        "  - IRCNN_Mx1 - (medium denoise)\n" +
+        "  - IRCNN_Lx1 - (high denoise)\n",
 
         "\n SRVGGNetCompact (2022) - Fast and lightweight AI architecture\n" +
         " Good-quality upscale\n" +
         " Recommended for video upscaling\n" +
-        "  • RealESR_Gx4\n" +
-        "  • RealSRx4_Anime\n",
+        "  - RealESR_Gx4\n" +
+        "  - RealSRx4_Anime\n",
 
         "\n RRDB (2020) - Complex and heavy AI architecture\n" +
         " High-quality upscale\n" +
         " Recommended for image upscaling\n" +
-        "  • BSRGANx2\n" +
-        "  • BSRGANx4\n" +
-        "  • RealESRGANx4\n",
+        "  - BSRGANx2\n" +
+        "  - BSRGANx4\n" +
+        "  - RealESRGANx4\n",
 
     ]
 
@@ -2146,16 +2189,16 @@ def open_info_AI_model():
 def open_info_gpu():
     option_list = [
         "\n It is possible to select up to 4 GPUs, via the index (also visible in the Task Manager):\n" +
-        "  • GPU 1 (GPU 0 in Task manager)\n" +
-        "  • GPU 2 (GPU 1 in Task manager)\n" +
-        "  • GPU 3 (GPU 2 in Task manager)\n" +
-        "  • GPU 4 (GPU 3 in Task manager)\n",
+        "  - GPU 1 (GPU 0 in Task manager)\n" +
+        "  - GPU 2 (GPU 1 in Task manager)\n" +
+        "  - GPU 3 (GPU 2 in Task manager)\n" +
+        "  - GPU 4 (GPU 3 in Task manager)\n",
 
         "\n NOTES\n" +
-        "  • Keep in mind that the more powerful the chosen gpu is, the faster the upscaling will be\n" +
-        "  • For optimal performance, it is essential to regularly update your GPUs drivers\n" +
-        "  • Selecting the index of a GPU not present in the PC will cause the app to use the CPU for AI operations\n"+
-        "  • In the case of a single GPU, select 'GPU 1'\n"
+        "  - Keep in mind that the more powerful the chosen gpu is, the faster the upscaling will be\n" +
+        "  - For optimal performance, it is essential to regularly update your GPUs drivers\n" +
+        "  - Selecting the index of a GPU not present in the PC will cause the app to use the CPU for AI operations\n"+
+        "  - In the case of a single GPU, select 'GPU 1'\n"
     ]
 
     CTkMessageBox(
@@ -2169,16 +2212,16 @@ def open_info_gpu():
 def open_info_AI_precision():
     option_list = [
         " \n HALF PRECISION\n" +
-        "  • old GPUs are not compatible with this mode\n",
+        "  - old GPUs are not compatible with this mode\n",
 
         " \n FULL PRECISION\n" +
-        "  • compatible with all GPUs\n",
+        "  - compatible with all GPUs\n",
 
         " \n NOTES\n" +
-        "  • both modes can offer a boost to performance\n" +
-        "  • this depends on the characteristics of the PC (GPU architecture, CPU power and others)\n" +
-        "  • and on the characteristics of the AI-model selected\n" +
-        "  • I recommend trying both modes and finding the fastest one for your PC \n"
+        "  - both modes can offer a boost to performance\n" +
+        "  - this depends on the characteristics of the PC (GPU architecture, CPU power and others)\n" +
+        "  - and on the characteristics of the AI-model selected\n" +
+        "  - I recommend trying both modes and finding the fastest one for your PC \n"
 
     ]
 
@@ -2195,15 +2238,15 @@ def open_info_interpolation():
         " Interpolation is the fusion of the upscaled image produced by AI and the original image",
 
         " \n INTERPOLATION OPTIONS\n" +
-        "  • Disabled - 100% upscaled\n" +
-        "  • Low - 30% original / 70% upscaled\n" +
-        "  • Medium - 50% original / 50% upscaled\n" +
-        "  • High - 70% original / 30% upscaled\n",
+        "  - Disabled - 100% upscaled\n" +
+        "  - Low - 30% original / 70% upscaled\n" +
+        "  - Medium - 50% original / 50% upscaled\n" +
+        "  - High - 70% original / 30% upscaled\n",
 
         " \n NOTES\n" +
-        "  • Can increase the quality of the final result\n" +
-        "  • Especially when using the tilling/merging function (with low VRAM)\n" +
-        "  • Especially at low Input resolution % values (<50%) \n",
+        "  - Can increase the quality of the final result\n" +
+        "  - Especially when using the tilling/merging function (with low VRAM)\n" +
+        "  - Especially at low Input resolution % values (<50%) \n",
 
     ]
 
@@ -2220,16 +2263,16 @@ def open_info_AI_multithreading():
         " This option can improve video upscaling performance, especially with powerful GPUs",
 
         " \n AI MULTITHREADING OPTIONS\n"
-        + "  • Disabed - upscaling 1 frame\n"
-        + "  • 2 threads - upscaling 2 frame simultaneously\n"
-        + "  • 3 threads - upscaling 3 frame simultaneously\n"
-        + "  • 4 threads - upscaling 4 frame simultaneously\n" ,
+        + "  - Disabed - upscaling 1 frame\n"
+        + "  - 2 threads - upscaling 2 frame simultaneously\n"
+        + "  - 3 threads - upscaling 3 frame simultaneously\n"
+        + "  - 4 threads - upscaling 4 frame simultaneously\n" ,
 
         " \n NOTES \n"
-        + "  • As the number of threads increases, the use of CPU, GPU and RAM memory also increases\n"
-        + "  • In particular, the GPU is put under a lot of stress, and may reach high temperatures\n"
-        + "  • Keep an eye on the temperature of your PC so that it doesn't overheat \n"
-        + "  • The app selects the most appropriate number of threads if the chosen number exceeds GPU capacity\n" ,
+        + "  - As the number of threads increases, the use of CPU, GPU and RAM memory also increases\n"
+        + "  - In particular, the GPU is put under a lot of stress, and may reach high temperatures\n"
+        + "  - Keep an eye on the temperature of your PC so that it doesn't overheat \n"
+        + "  - The app selects the most appropriate number of threads if the chosen number exceeds GPU capacity\n" ,
 
     ]
 
@@ -2243,10 +2286,10 @@ def open_info_AI_multithreading():
 
 def open_info_image_output():
     option_list = [
-        " \n PNG\n  • very good quality\n  • slow and heavy file\n  • supports transparent images\n",
-        " \n JPG\n  • good quality\n  • fast and lightweight file\n",
-        " \n BMP\n  • highest quality\n  • slow and heavy file\n",
-        " \n TIFF\n  • highest quality\n  • very slow and heavy file\n",
+        " \n PNG\n  - very good quality\n  - slow and heavy file\n  - supports transparent images\n",
+        " \n JPG\n  - good quality\n  - fast and lightweight file\n",
+        " \n BMP\n  - highest quality\n  - slow and heavy file\n",
+        " \n TIFF\n  - highest quality\n  - very slow and heavy file\n",
     ]
 
     CTkMessageBox(
@@ -2260,14 +2303,14 @@ def open_info_image_output():
 def open_info_video_extension():
     option_list = [
         "\n MP4 (x264)\n" +
-        "   • produces well compressed video using x264 codec\n",
+        "   - produces well compressed video using x264 codec\n",
 
         "\n MP4 (x265)\n" +
-        "   • produces well compressed video using x265 codec\n",
+        "   - produces well compressed video using x265 codec\n",
 
         "\n AVI\n" +
-        "   • produces the highest quality video\n" +
-        "   • the video produced can also be of large size\n"
+        "   - produces the highest quality video\n" +
+        "   - the video produced can also be of large size\n"
     ]
 
     CTkMessageBox(
@@ -2282,7 +2325,7 @@ def open_info_vram_limiter():
     option_list = [
         " It is important to enter the correct value according to the VRAM of selected GPU ",
         " Selecting a value greater than the actual amount of GPU VRAM may result in upscale failure",
-        " For integrated GPUs (Intel-HD series • Vega 3,5,7) - select 2 GB",
+        " For integrated GPUs (Intel-HD series - Vega 3,5,7) - select 2 GB",
     ]
 
     CTkMessageBox(
@@ -2299,10 +2342,10 @@ def open_info_input_resolution():
         " While a low value (<40%) will create good quality photos/videos but will much faster",
 
         " \n For example, for a 1080p (1920x1080) image/video\n" +
-        " • Input resolution 25% => input to AI 270p (480x270)\n" +
-        " • Input resolution 50% => input to AI 540p (960x540)\n" +
-        " • Input resolution 75% => input to AI 810p (1440x810)\n" +
-        " • Input resolution 100% => input to AI 1080p (1920x1080) \n",
+        " - Input resolution 25% => input to AI 270p (480x270)\n" +
+        " - Input resolution 50% => input to AI 540p (960x540)\n" +
+        " - Input resolution 75% => input to AI 810p (1440x810)\n" +
+        " - Input resolution 100% => input to AI 1080p (1920x1080) \n",
     ]
 
     CTkMessageBox(
@@ -2318,8 +2361,8 @@ def open_info_cpu():
         " When possible the app will use the number of cpus selected",
 
         "\n Currently this value is used for: \n" +
-        "  • video frames extraction \n" +
-        "  • video encoding \n",
+        "  - video frames extraction \n" +
+        "  - video encoding \n",
     ]
 
     CTkMessageBox(
@@ -2372,7 +2415,7 @@ def place_loadFile_section():
         fg_color = dark_color
     )
 
-    text_drop = """ SUPPORTED FILES \n\n IMAGES • jpg png tif bmp webp heic \n VIDEOS • mp4 webm mkv flv gif avi mov mpg qt 3gp """
+    text_drop = """ SUPPORTED FILES \n\n IMAGES - jpg png tif bmp webp heic \n VIDEOS - mp4 webm mkv flv gif avi mov mpg qt 3gp """
 
     input_file_text = CTkLabel(
         master = window,
