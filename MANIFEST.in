@@ -1,4 +1,7 @@
 include pyproject.toml
 include requirements.testing.txt
 include src/qualityscaler/AI/readme.txt
+include src/qualityscaler/requirements.runtime.lock.txt
+include src/qualityscaler/_vendor/iso_env/LICENSE
+recursive-include src/qualityscaler/_vendor/iso_env/assets *
 exclude assets.zip

@@ -1,25 +1,58 @@
-# template-python-cmd
-A template for quickly making a python lib that has a command line program attached
+# QualityScaler
 
+[![Build](../../actions/workflows/build.yml/badge.svg)](../../actions/workflows/build.yml)
+[![Unit Tests](../../actions/workflows/unit-tests.yml/badge.svg)](../../actions/workflows/unit-tests.yml)
 [![Linting](../../actions/workflows/lint.yml/badge.svg)](../../actions/workflows/lint.yml)
 
-[![MacOS_Tests](../../actions/workflows/push_macos.yml/badge.svg)](../../actions/workflows/push_macos.yml)
-[![Ubuntu_Tests](../../actions/workflows/push_ubuntu.yml/badge.svg)](../../actions/workflows/push_ubuntu.yml)
-[![Win_Tests](../../actions/workflows/push_win.yml/badge.svg)](../../actions/workflows/push_win.yml)
+QualityScaler is an image and video upscaling GUI. This package is the lightweight launcher for that GUI: it installs small launcher dependencies, creates or reuses an isolated Python 3.10 runtime, installs the locked runtime dependencies there, and starts the GUI with `python -m qualityscaler.QualityScaler`.
 
-Replace `template-python-cmd` and `template_python_cmd` with your command. Run tox until it's
-correct.
+The installed commands are:
 
-To develop software, run `. ./activate.sh`
+```sh
+quality-scaler
+qualityscaler
+```
 
-# Windows
+Both commands call `qualityscaler.cli:main`.
 
-This environment requires you to use `git-bash`.
+## Runtime Environment
 
-# Linting
+The launcher keeps the heavy AI and GUI runtime separate from the outer package environment. The first launch can take longer because the managed runtime is created and populated from `src/qualityscaler/requirements.runtime.lock.txt`. Later launches reuse the same runtime.
 
-Run `./lint.sh` to find linting errors using `pylint`, `flake8` and `mypy`.
+Runtime controls:
 
-# Versions
+* `QUALITYSCALER_RUNTIME_ENV` overrides the managed runtime directory.
+* `QUALITYSCALER_LAUNCH_TIMEOUT_SECONDS` limits the child GUI process lifetime for automation and tests.
 
-  * `2.12.0` - Updated to upstream 2.12.0 version. 
+Without an override, the runtime is stored under the platform cache directory:
+
+* Windows: `%LOCALAPPDATA%\QualityScaler\runtime-py310`
+* Linux/macOS: `$XDG_CACHE_HOME/QualityScaler/runtime-py310` or `~/.cache/QualityScaler/runtime-py310`
+
+## Development
+
+Install the lightweight launcher package and test tools:
+
+```sh
+python -m pip install --upgrade pip
+python -m pip install -e .
+python -m pip install -r requirements.testing.txt
+```
+
+Run the focused unit tests:
+
+```sh
+pytest tests -vv
+```
+
+These tests validate the launcher contract without importing the AI runtime dependencies or opening the GUI.
+
+Run linting for the lightweight launcher and tests:
+
+```sh
+ruff check src/qualityscaler/cli.py tests
+```
+
+## Versions
+
+* `2.12.0` - Updated to upstream 2.12.0 version.

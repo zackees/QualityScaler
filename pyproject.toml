@@ -5,29 +5,19 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "quality_scaler"
 description = "upscales images using ai"
-requires-python = ">=3.7"
-keywords = ["template-python-cmd"]
+requires-python = ">=3.10"
+keywords = ["qualityscaler", "upscale", "ai", "directml"]
 license = { text = "BSD 3-Clause License" }
 classifiers = ["Programming Language :: Python :: 3"]
 dependencies = [
-    #AI
-    "torch-directml==0.1.13.1.dev230413",
-
-    #GUI
-    "customtkinter",
-    "packaging",
-
-    #UTILS
-    "pyinstaller==5.13.2",
-    "moviepy",
-    "opencv-python-headless",
-    "Pillow",
-    "download",
+    "filelock>=3.13.0",
+    "uv>=0.6.4",
 ]
 version = "2.12.9"
-# readme is labeled as dynamic
-[tool.setuptools.dynamic]
-dependencies = { file = ["requirements.txt"] }
+
+[tool.setuptools.package-data]
+qualityscaler = ["requirements.runtime.lock.txt"]
+"qualityscaler._vendor.iso_env" = ["LICENSE", "assets/example.txt"]
 
 
 [tool.ruff]
