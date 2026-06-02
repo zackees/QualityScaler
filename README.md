@@ -55,6 +55,7 @@ ruff check src/qualityscaler/cli.py tests
 
 ## Versions
 
+* `3.6.0` - Updated to upstream 3.6 with dependency cleanup and VRAM tuning.
 * `3.5.0` - Updated to upstream 3.5 with IRCNN denoise models and four-GPU selection.
 * `3.4.0` - Updated to upstream 3.4 with AI multithreading and selectable output paths.
 * `3.2.0` - Updated to upstream 3.2 with multi-GPU selection and video frame overwrite fixes.
