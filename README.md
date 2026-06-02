@@ -55,4 +55,5 @@ ruff check src/qualityscaler/cli.py tests
 
 ## Versions
 
+* `2.13.0` - Updated to upstream 2.13 version while preserving isolated runtime and lazy model downloads.
 * `2.12.0` - Updated to upstream 2.12.0 version.
