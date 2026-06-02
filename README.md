@@ -55,6 +55,7 @@ ruff check src/qualityscaler/cli.py tests
 
 ## Versions
 
+* `3.8.0` - Updated to upstream 3.8 with STOP/RESUME video workflow, saved preferences, and natural frame ordering.
 * `3.7.0` - Updated to upstream 3.7 with split IRCNN denoise models and model-menu grouping.
 * `3.6.0` - Updated to upstream 3.6 with dependency cleanup and VRAM tuning.
 * `3.5.0` - Updated to upstream 3.5 with IRCNN denoise models and four-GPU selection.
