@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import datetime as _datetime
 import importlib
+import io
 import os
 import subprocess
 import sys
@@ -44,7 +46,7 @@ def cli_module(monkeypatch: pytest.MonkeyPatch) -> Any:
         def __init__(self, args: IsoEnvArgs) -> None:
             self.args = args
 
-        def open_proc(self, command: list[str], env: dict[str, str]) -> Any:
+        def open_proc(self, command: list[str], **process_args: Any) -> Any:
             raise AssertionError("tests should install a fake process")
 
     iso_env_module.IsoEnv = IsoEnv
@@ -114,75 +116,198 @@ def test_runtime_process_env_prepends_launcher_scripts_directory(
     assert env["PATH"].endswith("existing-path")
 
 
-def test_run_qualityscaler_opens_gui_module_in_iso_env(
+class _FakeProcess:
+    """Stand-in for ``subprocess.Popen`` exposing just what the launcher uses."""
+
+    def __init__(
+        self,
+        stdout_bytes: bytes = b"",
+        returncode: int = 0,
+        raise_timeout: bool = False,
+    ) -> None:
+        self.stdout = io.BytesIO(stdout_bytes)
+        self._returncode = returncode
+        self._raise_timeout = raise_timeout
+        self.wait_calls: list[float | None] = []
+
+    def wait(self, timeout: float | None = None) -> int:
+        self.wait_calls.append(timeout)
+        if self._raise_timeout:
+            raise subprocess.TimeoutExpired(["python"], timeout)
+        return self._returncode
+
+    def poll(self) -> int | None:
+        return self._returncode
+
+
+def _install_fake_iso_env(
     cli_module: Any,
     monkeypatch: pytest.MonkeyPatch,
+    process: _FakeProcess,
+    open_calls: list[tuple[object, list[str], dict[str, Any]]] | None = None,
 ) -> None:
-    open_calls = []
-    runtime_args = object()
-    runtime_env = {"PATH": "runtime-path"}
-
-    class FakeProcess:
-        def __init__(self) -> None:
-            self.wait_calls = []
-
-        def wait(self, timeout: float | None = None) -> int:
-            self.wait_calls.append(timeout)
-            return 23
-
-    process = FakeProcess()
-
     class FakeIsoEnv:
         def __init__(self, args: object) -> None:
             self.args = args
 
-        def open_proc(self, command: list[str], env: dict[str, str]) -> FakeProcess:
-            open_calls.append((self.args, command, env))
+        def open_proc(
+            self, command: list[str], **process_args: Any
+        ) -> _FakeProcess:
+            if open_calls is not None:
+                open_calls.append((self.args, command, process_args))
             return process
 
     monkeypatch.setattr(cli_module, "IsoEnv", FakeIsoEnv)
-    monkeypatch.setattr(cli_module, "_runtime_args", lambda: runtime_args)
-    monkeypatch.setattr(cli_module, "_runtime_process_env", lambda: runtime_env)
+    monkeypatch.setattr(cli_module, "_runtime_args", lambda: object())
+    monkeypatch.setattr(cli_module, "_runtime_process_env", lambda: {"PATH": "x"})
 
-    assert cli_module.run_qualityscaler() == 23
-    assert open_calls == [
-        (
-            runtime_args,
-            ["python", "-m", "qualityscaler.QualityScaler"],
-            runtime_env,
-        )
-    ]
-    assert process.wait_calls == [None]
+
+def test_run_qualityscaler_pipes_subprocess_output_to_log_file(
+    cli_module: Any,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    open_calls: list[tuple[object, list[str], dict[str, Any]]] = []
+    process = _FakeProcess(stdout_bytes=b"hello from gui\n")
+    _install_fake_iso_env(cli_module, monkeypatch, process, open_calls)
+
+    monkeypatch.setenv(cli_module.RUNTIME_LOG_DIR_ENV_VAR, str(tmp_path))
+
+    assert cli_module.run_qualityscaler() == 0
+
+    assert len(open_calls) == 1
+    _, command, process_args = open_calls[0]
+    assert command == ["python", "-u", "-m", "qualityscaler.QualityScaler"]
+    assert process_args["stdout"] is subprocess.PIPE
+    assert process_args["stderr"] == subprocess.STDOUT
+
+    log_files = list(tmp_path.glob("launch-*.log"))
+    assert len(log_files) == 1
+    assert log_files[0].read_bytes() == b"hello from gui\n"
+
+
+def test_run_qualityscaler_reports_failure_with_log_tail(
+    cli_module: Any,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    crash_output = (
+        b"Traceback (most recent call last):\n"
+        b"  File \"<stdin>\", line 1\n"
+        b"ImportError: numpy.core.multiarray failed to import\n"
+    )
+    process = _FakeProcess(stdout_bytes=crash_output, returncode=1)
+    _install_fake_iso_env(cli_module, monkeypatch, process)
+    monkeypatch.setenv(cli_module.RUNTIME_LOG_DIR_ENV_VAR, str(tmp_path))
+
+    assert cli_module.run_qualityscaler() == 1
+
+    err = capsys.readouterr().err
+    assert "QualityScaler GUI exited with code 1" in err
+    assert "ImportError: numpy.core.multiarray failed to import" in err
+    log_files = list(tmp_path.glob("launch-*.log"))
+    assert len(log_files) == 1
+    assert str(log_files[0]) in err
 
 
 def test_run_qualityscaler_timeout_terminates_process(
     cli_module: Any,
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
-    timeout = 0.01
-    terminated = []
-
-    class FakeProcess:
-        def wait(self, timeout: float | None = None) -> int:
-            raise subprocess.TimeoutExpired(["python"], timeout)
-
-    process = FakeProcess()
-
-    class FakeIsoEnv:
-        def __init__(self, args: object) -> None:
-            self.args = args
-
-        def open_proc(self, command: list[str], env: dict[str, str]) -> FakeProcess:
-            return process
-
-    monkeypatch.setattr(cli_module, "IsoEnv", FakeIsoEnv)
-    monkeypatch.setattr(cli_module, "_runtime_args", lambda: object())
-    monkeypatch.setattr(cli_module, "_runtime_process_env", lambda: {})
+    terminated: list[object] = []
+    process = _FakeProcess(raise_timeout=True)
+    _install_fake_iso_env(cli_module, monkeypatch, process)
+    monkeypatch.setenv(cli_module.RUNTIME_LOG_DIR_ENV_VAR, str(tmp_path))
     monkeypatch.setattr(
         cli_module,
         "_terminate_process_tree",
         lambda proc: terminated.append(proc),
     )
 
-    assert cli_module.run_qualityscaler(timeout_seconds=timeout) == 0
+    assert cli_module.run_qualityscaler(timeout_seconds=0.01) == 0
     assert terminated == [process]
+
+
+def test_default_log_dir_honors_override(
+    cli_module: Any,
+    tmp_path: Path,
+) -> None:
+    override = tmp_path / "custom-logs"
+    env = {cli_module.RUNTIME_LOG_DIR_ENV_VAR: str(override)}
+
+    assert cli_module._default_log_dir(env=env) == override
+
+
+def test_default_log_dir_uses_platform_default_when_unset(
+    cli_module: Any,
+) -> None:
+    log_dir = cli_module._default_log_dir(env={})
+    assert log_dir.parts[-2:] == ("QualityScaler", "logs")
+
+
+def test_new_log_path_is_timestamped_and_unique(
+    cli_module: Any,
+    tmp_path: Path,
+) -> None:
+    fixed_now = _datetime.datetime(2026, 6, 2, 12, 34, 56)
+    path = cli_module._new_log_path(tmp_path, now=fixed_now)
+
+    assert path.parent == tmp_path
+    assert path.name.startswith("launch-20260602-123456-")
+    assert path.suffix == ".log"
+
+
+def test_format_failure_message_includes_tail(
+    cli_module: Any,
+    tmp_path: Path,
+) -> None:
+    log_path = tmp_path / "launch.log"
+    message = cli_module._format_failure_message(
+        returncode=1,
+        log_path=log_path,
+        tail="line1\nline2",
+    )
+    assert "exited with code 1" in message
+    assert str(log_path) in message
+    assert "line1\nline2" in message
+
+
+def test_tail_text_keeps_only_last_lines(cli_module: Any) -> None:
+    text = "\n".join(str(i) for i in range(100))
+    tail = cli_module._tail_text(text, max_lines=5)
+    assert tail.splitlines() == ["95", "96", "97", "98", "99"]
+
+
+def test_tee_stream_writes_to_all_destinations(cli_module: Any) -> None:
+    src = io.BytesIO(b"abc" * 2000)
+    dest_a = io.BytesIO()
+    dest_b = io.BytesIO()
+
+    cli_module._tee_stream(src, [dest_a, dest_b])
+
+    expected = b"abc" * 2000
+    assert dest_a.getvalue() == expected
+    assert dest_b.getvalue() == expected
+
+
+def test_runtime_lock_pins_numpy_below_2(cli_module: Any) -> None:
+    """torch 1.13.1 / torch-directml only support numpy 1.x."""
+    lock_text = cli_module._runtime_lock_text()
+    assert "numpy==1.26.4" in lock_text
+    assert "numpy==2." not in lock_text
+
+
+def test_runtime_lock_pins_opencv_before_numpy2_requirement(cli_module: Any) -> None:
+    """opencv-python-headless 4.12+ requires numpy 2.x on Python 3.10."""
+    lock_text = cli_module._runtime_lock_text()
+    assert "opencv-python-headless==4.11.0.86" in lock_text
+    assert "opencv-python-headless==4.12" not in lock_text
+    assert "opencv-python-headless==4.13" not in lock_text
+
+
+def test_runtime_lock_pins_pillow_below_10(cli_module: Any) -> None:
+    """torchvision 0.14.1 and moviepy 1.0.3 use PIL APIs removed in Pillow 10."""
+    lock_text = cli_module._runtime_lock_text()
+    assert "pillow==9.5.0" in lock_text
