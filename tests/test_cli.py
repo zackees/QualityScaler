@@ -94,7 +94,8 @@ def test_runtime_args_use_override_path_and_locked_python(
     assert self_requirement.startswith(
         f"{cli_module.PACKAGE_DIST_NAME} @ file:///"
     ) or self_requirement.startswith(f"{cli_module.PACKAGE_DIST_NAME}==")
-    assert "torch-directml==0.1.13.1.dev230413" in args.build_info.requirement_text
+    assert "onnxruntime-directml==1.23.0" in args.build_info.requirement_text
+    assert "torch-directml" not in args.build_info.requirement_text
 
 
 def test_runtime_process_env_prepends_launcher_scripts_directory(
@@ -293,7 +294,7 @@ def test_tee_stream_writes_to_all_destinations(cli_module: Any) -> None:
 
 
 def test_runtime_lock_pins_numpy_below_2(cli_module: Any) -> None:
-    """torch 1.13.1 / torch-directml only support numpy 1.x."""
+    """Keep the MoviePy 1.x / ONNX runtime stack on NumPy 1.x."""
     lock_text = cli_module._runtime_lock_text()
     assert "numpy==1.26.4" in lock_text
     assert "numpy==2." not in lock_text
@@ -308,6 +309,14 @@ def test_runtime_lock_pins_opencv_before_numpy2_requirement(cli_module: Any) -> 
 
 
 def test_runtime_lock_pins_pillow_below_10(cli_module: Any) -> None:
-    """torchvision 0.14.1 and moviepy 1.0.3 use PIL APIs removed in Pillow 10."""
+    """moviepy 1.0.3 uses PIL APIs removed in Pillow 10."""
     lock_text = cli_module._runtime_lock_text()
     assert "pillow==9.5.0" in lock_text
+
+
+def test_runtime_lock_uses_onnx_directml_stack(cli_module: Any) -> None:
+    lock_text = cli_module._runtime_lock_text()
+    assert "onnx==1.21.0" in lock_text
+    assert "onnxconverter-common==1.16.0" in lock_text
+    assert "onnxruntime-directml==1.23.0" in lock_text
+    assert "torch==" not in lock_text
