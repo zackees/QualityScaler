@@ -318,6 +318,7 @@ def test_runtime_lock_uses_onnx_directml_stack(cli_module: Any) -> None:
     lock_text = cli_module._runtime_lock_text()
     assert "onnx==1.21.0" in lock_text
     assert "onnxconverter-common==1.16.0" in lock_text
+    assert "natsort==8.4.0" in lock_text
     assert "onnxoptimizer==" not in lock_text
     assert "onnxruntime-directml==1.17.3" in lock_text
     assert "torch==" not in lock_text
