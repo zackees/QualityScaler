@@ -94,7 +94,7 @@ def test_runtime_args_use_override_path_and_locked_python(
     assert self_requirement.startswith(
         f"{cli_module.PACKAGE_DIST_NAME} @ file:///"
     ) or self_requirement.startswith(f"{cli_module.PACKAGE_DIST_NAME}==")
-    assert "onnxruntime-directml==1.23.0" in args.build_info.requirement_text
+    assert "onnxruntime-directml==1.17.3" in args.build_info.requirement_text
     assert "torch-directml" not in args.build_info.requirement_text
 
 
@@ -318,6 +318,6 @@ def test_runtime_lock_uses_onnx_directml_stack(cli_module: Any) -> None:
     lock_text = cli_module._runtime_lock_text()
     assert "onnx==1.21.0" in lock_text
     assert "onnxconverter-common==1.16.0" in lock_text
-    assert "onnxoptimizer==0.4.2" in lock_text
-    assert "onnxruntime-directml==1.23.0" in lock_text
+    assert "onnxoptimizer==" not in lock_text
+    assert "onnxruntime-directml==1.17.3" in lock_text
     assert "torch==" not in lock_text
