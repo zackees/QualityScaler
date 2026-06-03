@@ -55,6 +55,7 @@ ruff check src/qualityscaler/cli.py tests
 
 ## Versions
 
+* `2026.1.0` - Updated to upstream 2026.1 with year-based app versioning, LVAx2/MSharpx4 models, app zoom controls, and image/video workflow improvements.
 * `4.9.0` - Updated to upstream 4.9 with cleanup, frame queue timing adjustments, and pre-2026 stability fixes.
 * `4.8.0` - Updated to upstream 4.8 with frame-loss fixes, optimized resize behavior, and video progress stability updates.
 * `4.7.0` - Updated to upstream 4.7 with DirectML engine 1.23, video memory/disk I/O improvements, and VFR extraction fixes.
