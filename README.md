@@ -55,6 +55,7 @@ ruff check src/qualityscaler/cli.py tests
 
 ## Versions
 
+* `4.0.0` - Updated to upstream 4.0.0 with redesigned GUI, output scaling, video codecs, and hardware encoder options.
 * `3.12.0` - Updated to upstream 3.12 with keep-frames controls and video workflow polish.
 * `3.11.0` - Updated to upstream 3.11 with GPU auto-selection, video memory cleanup, and refreshed AI runtime behavior.
 * `3.10.0` - Updated to upstream 3.10 with FFmpeg audio passthrough and video workflow cleanup.
