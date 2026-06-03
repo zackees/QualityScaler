@@ -94,7 +94,7 @@ def test_runtime_args_use_override_path_and_locked_python(
     assert self_requirement.startswith(
         f"{cli_module.PACKAGE_DIST_NAME} @ file:///"
     ) or self_requirement.startswith(f"{cli_module.PACKAGE_DIST_NAME}==")
-    assert "onnxruntime-directml==1.22.0" in args.build_info.requirement_text
+    assert "onnxruntime-directml==1.23.0" in args.build_info.requirement_text
     assert "torch-directml" not in args.build_info.requirement_text
 
 
@@ -323,7 +323,7 @@ def test_runtime_lock_uses_onnxruntime_directml_stack(cli_module: Any) -> None:
     assert "ml-dtypes==" not in lock_text
     assert "natsort==8.4.0" in lock_text
     assert "onnxoptimizer==" not in lock_text
-    assert "onnxruntime-directml==1.22.0" in lock_text
+    assert "onnxruntime-directml==1.23.0" in lock_text
     assert "psutil==7.2.2" in lock_text
     assert "moviepy==" not in lock_text
     assert "torch==" not in lock_text
