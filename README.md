@@ -55,6 +55,7 @@ ruff check src/qualityscaler/cli.py tests
 
 ## Versions
 
+* `4.5.0` - Updated to upstream 4.5 with FFmpeg-based frame extraction, faster frame saving, and frame-directory workflow improvements.
 * `4.4.0` - Updated to upstream 4.4 with DirectML engine 1.22, RAM-aware frame queues, and video multithreading utilization improvements.
 * `4.2.0` - Updated to upstream 4.2 with video frame-save threading improvements, even-dimension resize handling, and stronger upscaling error recovery.
 * `4.0.0` - Updated to upstream 4.0.0 with redesigned GUI, output scaling, video codecs, and hardware encoder options.
