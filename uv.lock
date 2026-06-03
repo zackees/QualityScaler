@@ -13,7 +13,7 @@ wheels = [
 
 [[package]]
 name = "quality-scaler"
-version = "4.9.0"
+version = "2026.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "filelock" },
