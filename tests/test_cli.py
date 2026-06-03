@@ -294,7 +294,7 @@ def test_tee_stream_writes_to_all_destinations(cli_module: Any) -> None:
 
 
 def test_runtime_lock_pins_numpy_below_2(cli_module: Any) -> None:
-    """Keep the MoviePy 1.x / ONNX runtime stack on NumPy 1.x."""
+    """Keep the ONNX Runtime / OpenCV stack on NumPy 1.x."""
     lock_text = cli_module._runtime_lock_text()
     assert "numpy==1.26.4" in lock_text
     assert "numpy==2." not in lock_text
@@ -308,10 +308,12 @@ def test_runtime_lock_pins_opencv_before_numpy2_requirement(cli_module: Any) -> 
     assert "opencv-python-headless==4.13" not in lock_text
 
 
-def test_runtime_lock_pins_pillow_below_10(cli_module: Any) -> None:
-    """moviepy 1.0.3 uses PIL APIs removed in Pillow 10."""
+def test_runtime_lock_includes_pillow_for_app_images(cli_module: Any) -> None:
     lock_text = cli_module._runtime_lock_text()
-    assert "pillow==9.5.0" in lock_text
+    assert "pillow==" in lock_text
+    assert "moviepy==" not in lock_text
+    assert "imageio==" not in lock_text
+    assert "imageio-ffmpeg==" not in lock_text
 
 
 def test_runtime_lock_uses_onnxruntime_directml_stack(cli_module: Any) -> None:
@@ -322,4 +324,5 @@ def test_runtime_lock_uses_onnxruntime_directml_stack(cli_module: Any) -> None:
     assert "natsort==8.4.0" in lock_text
     assert "onnxoptimizer==" not in lock_text
     assert "onnxruntime-directml==1.17.3" in lock_text
+    assert "moviepy==" not in lock_text
     assert "torch==" not in lock_text
