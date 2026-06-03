@@ -78,6 +78,7 @@ from cv2 import (
     COLOR_BGR2RGBA,
     COLOR_RGB2GRAY,
     IMREAD_UNCHANGED,
+    INTER_LINEAR,
     INTER_AREA,
     INTER_CUBIC,
     VideoCapture as opencv_VideoCapture,
@@ -144,7 +145,7 @@ def find_asset_path(*asset_names: str) -> str:
 
 
 app_name   = "QualityScaler"
-version    = "4.7"
+version    = "4.8"
 githubme   = "https://github.com/Djdefrag/QualityScaler/releases"
 telegramme = "https://linktr.ee/j3ngystudio"
 
@@ -163,7 +164,7 @@ VRAM_model_usage = {
     'IRCNN_Lx1':       4,
 
     'LVAx2': 2.5,
-    'LVAx4': 2.5
+    'LVAx4': 1.5
 }
 
 MENU_LIST_SEPARATOR         = [ "----" ]
@@ -356,6 +357,8 @@ class AI_upscale:
 
     def resize_with_input_factor(self, image: numpy_ndarray) -> numpy_ndarray:
 
+        if self.input_resize_factor == 1: return image
+
         old_height, old_width = self.get_image_resolution(image)
 
         new_width  = int(old_width * self.input_resize_factor)
@@ -364,14 +367,11 @@ class AI_upscale:
         new_width  = new_width if new_width % 2 == 0 else new_width + 1
         new_height = new_height if new_height % 2 == 0 else new_height + 1
 
-        if self.input_resize_factor > 1:
-            return opencv_resize(image, (new_width, new_height), interpolation = INTER_CUBIC)
-        elif self.input_resize_factor < 1:
-            return opencv_resize(image, (new_width, new_height), interpolation = INTER_AREA)
-        else:
-            return image
+        return opencv_resize(image, (new_width, new_height), interpolation = INTER_AREA)
 
     def resize_with_output_factor(self, image: numpy_ndarray) -> numpy_ndarray:
+
+        if self.output_resize_factor == 1: return image
 
         old_height, old_width = self.get_image_resolution(image)
 
@@ -381,12 +381,8 @@ class AI_upscale:
         new_width  = new_width if new_width % 2 == 0 else new_width + 1
         new_height = new_height if new_height % 2 == 0 else new_height + 1
 
-        if self.output_resize_factor > 1:
-            return opencv_resize(image, (new_width, new_height), interpolation = INTER_CUBIC)
-        elif self.output_resize_factor < 1:
-            return opencv_resize(image, (new_width, new_height), interpolation = INTER_AREA)
-        else:
-            return image
+        return opencv_resize(image, (new_width, new_height), interpolation = INTER_CUBIC)
+
 
 
 
@@ -1407,7 +1403,8 @@ def video_encoding(
     # Create a file .txt with all upscaled video frames paths || this file is essential
     with os_fdopen(os_open(txt_path, O_WRONLY | O_CREAT, 0o777), 'w', encoding="utf-8") as txt:
         for frame_path in upscaled_frame_paths:
-            txt.write(f"file '{frame_path}' \n")
+            if os_path_exists(frame_path):
+                txt.write(f"file '{frame_path}' \n")
 
     # Create the upscaled video without audio
     print(f"[FFMPEG] ENCODING ({codec})")
@@ -1529,17 +1526,10 @@ def blend_images_and_save(
         elif len(shape) == 3 and shape[2] == 3: return "RGB"
         elif len(shape) == 3 and shape[2] == 4: return "RGBA"
 
-    upscaled_image_importance       = 1 - starting_image_importance
-    starting_height, starting_width = get_image_resolution(starting_image)
-    target_height, target_width     = get_image_resolution(upscaled_image)
+    upscaled_image_importance   = 1 - starting_image_importance
+    target_height, target_width = get_image_resolution(upscaled_image)
 
-    starting_resolution = starting_height + starting_width
-    target_resolution   = target_height + target_width
-
-    if starting_resolution > target_resolution:
-        starting_image = opencv_resize(starting_image,(target_width, target_height), INTER_AREA)
-    else:
-        starting_image = opencv_resize(starting_image,(target_width, target_height))
+    starting_image = opencv_resize(starting_image,(target_width, target_height), interpolation = INTER_LINEAR)
 
     try:
         if get_image_mode(starting_image) == "RGBA":
@@ -1828,20 +1818,24 @@ def upscale_video_frames_async(
 
         # Calculate processing time
         end_timer       = timer()
-        processing_time = (end_timer - start_timer)/threads_number
+        processing_time = round((end_timer - start_timer)/threads_number, 2)
 
         # Add things in queue
-        try:
-            video_frames_and_info_q.put_nowait(
-                {
-                    "starting_frame":      starting_frame,
-                    "upscaled_frame":      upscaled_frame,
-                    "upscaled_frame_path": output_path,
-                    "processing_time":     processing_time
-                }
-            )
-        except Full:
-            sleep(0.1)
+        success = False
+        while success == False:
+            try:
+                video_frames_and_info_q.put_nowait(
+                    {
+                        "starting_frame":      starting_frame,
+                        "upscaled_frame":      upscaled_frame,
+                        "upscaled_frame_path": output_path,
+                        "processing_time":     processing_time
+                    }
+                )
+                success = True
+                break
+            except Full:
+                sleep(0.1)
 
     if event_stop_upscale_process.is_set():
         print("[Upscale process] Terminated")
@@ -1956,6 +1950,7 @@ def upscale_video(
                 processing_times_list.append(processing_time)
                 saved_frames_count += 1
 
+                # Save upscaled frames
                 threads_set.add(
                     executor.submit(
                         _internal_save_frame,
@@ -1975,13 +1970,12 @@ def upscale_video(
                     can_you_change_timer = True
                     last_update_time     = now
 
-                    if len(threads_set) > 10:
-                        done_threads = {t for t in threads_set if t.done()}
-                        threads_set -= done_threads
+                    done_threads = {t for t in threads_set if t.done()}
+                    threads_set -= done_threads
 
                     if processing_times_list:
                         average_processing_time = numpy_median(processing_times_list)
-                        if len(processing_times_list) >= 100: processing_times_list = []
+                        processing_times_list = []
                         update_video_upscale_process_status(process_status_q, file_number, upscaled_frame_paths, average_processing_time)
 
             for t in threads_set: t.result()
@@ -1995,7 +1989,7 @@ def upscale_video(
         ):
 
         while not stop_extraction_event.is_set():
-            sleep(1)
+            sleep(2)
             extracted_frames_number = len(
                 [
                     f for f in os_listdir(target_directory)
