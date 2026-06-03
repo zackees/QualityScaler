@@ -55,6 +55,7 @@ ruff check src/qualityscaler/cli.py tests
 
 ## Versions
 
+* `3.11.0` - Updated to upstream 3.11 with GPU auto-selection, video memory cleanup, and refreshed AI runtime behavior.
 * `3.10.0` - Updated to upstream 3.10 with FFmpeg audio passthrough and video workflow cleanup.
 * `3.9.0` - Updated to upstream 3.9 with half-precision ONNX models, six video AI threads, and faster file widgets.
 * `3.8.0` - Updated to upstream 3.8 with STOP/RESUME video workflow, saved preferences, and natural frame ordering.
