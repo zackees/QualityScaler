@@ -132,6 +132,7 @@ from customtkinter import (
     CTkOptionMenu,
     CTkScrollableFrame,
     CTkToplevel,
+    CTkCanvas,
     filedialog,
     set_appearance_mode,
     set_default_color_theme,
@@ -139,8 +140,12 @@ from customtkinter import (
     set_window_scaling
 )
 
-if sys.stdout is None: sys.stdout = open(os_devnull, "w")
-if sys.stderr is None: sys.stderr = open(os_devnull, "w")
+if sys.stdout is None: sys.stdout = open(os_devnull, "w", encoding="utf-8", errors="replace")
+else:                  sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
+if sys.stderr is None: sys.stderr = open(os_devnull, "w", encoding="utf-8", errors="replace")
+else:                  sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 
 def find_by_relative_path(relative_path: str) -> str:
     base_path = getattr(sys, '_MEIPASS', os_path_dirname(os_path_abspath(__file__)))
@@ -161,7 +166,7 @@ def find_asset_path(*asset_names: str) -> str:
 
 
 app_name   = "QualityScaler"
-version    = "2026.2"
+version    = "2026.3"
 githubme   = "https://github.com/Djdefrag/QualityScaler/releases"
 telegramme = "https://linktr.ee/j3ngystudio"
 
@@ -169,7 +174,6 @@ app_name_color          = "#F274EE"
 background_color        = "#000000"
 widget_background_color = "#181818"
 text_color              = "#B8B8B8"
-
 
 
 VRAM_model_usage = {
@@ -185,12 +189,12 @@ VRAM_model_usage = {
 }
 
 MENU_LIST_SEPARATOR = [ "----" ]
-LVA_models        = [ "LVAx2"                          ]
+LVA_models        = [ "LVAx2"                      ]
 RealESR_models    = [ "RealESR_Gx4", "RealESR_Ax4" ]
-BSRGAN_models     = [ "BSRGANx2",    "BSRGANx4"        ]
-RealESRGAN_models = [ "RealESRGANx4"                   ]
-MSharp_models     = [ "MSharpx4"                       ]
-IRCNN_models      = [ "IRCNN_Mx1",   "IRCNN_Lx1"       ]
+BSRGAN_models     = [ "BSRGANx2",    "BSRGANx4"    ]
+RealESRGAN_models = [ "RealESRGANx4"               ]
+MSharp_models     = [ "MSharpx4"                   ]
+IRCNN_models      = [ "IRCNN_Mx1",   "IRCNN_Lx1"   ]
 
 AI_models_list = (
     LVA_models          + MENU_LIST_SEPARATOR +
@@ -343,6 +347,7 @@ class AI_upscale:
         ensure_AI_model_file(self.selected_AI_model_path)
 
         providers = ['DmlExecutionProvider']
+        #providers = ['WebGpuExecutionProvider']
 
         match self.selected_gpu:
             case 'Auto':  provider_options = [{"performance_preference": "high_performance"}]
@@ -1281,10 +1286,14 @@ class FileWidget(CTkScrollableFrame):
                 output_resized_height = int(upscaled_height * (self.output_resize_factor/100))
                 output_resized_width  = int(upscaled_width * (self.output_resize_factor/100))
 
+                label_in  = f"AI input ({self.input_resize_factor}%)"
+                label_ups = f"AI output (x{self.upscale_factor})"
+                label_out = f"File output ({self.output_resize_factor}%)"
+
                 file_infos += (
-                    f"AI input ({self.input_resize_factor}%) -> {input_resized_width}x{input_resized_height} \n"
-                    f"AI output (x{self.upscale_factor}) -> {upscaled_width}x{upscaled_height} \n"
-                    f"Video output ({self.output_resize_factor}%) -> {output_resized_width}x{output_resized_height}"
+                    f"{label_in}\t= {input_resized_width}x{input_resized_height}\n"
+                    f"{label_ups}\t= {upscaled_width}x{upscaled_height}\n"
+                    f"{label_out}\t= {output_resized_width}x{output_resized_height}"
                 )
 
         else:
@@ -1303,10 +1312,14 @@ class FileWidget(CTkScrollableFrame):
                 output_resized_height = int(upscaled_height * (self.output_resize_factor/100))
                 output_resized_width  = int(upscaled_width * (self.output_resize_factor/100))
 
+                label_in  = f"AI input ({self.input_resize_factor}%)"
+                label_ups = f"AI output (x{self.upscale_factor})"
+                label_out = f"File output ({self.output_resize_factor}%)"
+
                 file_infos += (
-                    f"AI input ({self.input_resize_factor}%) -> {input_resized_width}x{input_resized_height} \n"
-                    f"AI output (x{self.upscale_factor}) -> {upscaled_width}x{upscaled_height} \n"
-                    f"Image output ({self.output_resize_factor}%) -> {output_resized_width}x{output_resized_height}"
+                    f"{label_in}\t= {input_resized_width}x{input_resized_height}\n"
+                    f"{label_ups}\t= {upscaled_width}x{upscaled_height}\n"
+                    f"{label_out}\t= {output_resized_width}x{output_resized_height}"
                 )
 
         return file_infos, file_icon
@@ -3258,19 +3271,23 @@ def place_message_label() -> None:
         corner_radius = 4
     )
 
-    triangle_pointer = CTkLabel(
-        master     = window,
-        text       = "◀",
-        font       = ("Arial", 24),
-        text_color = "#ffbf00",
-        bg_color   = background_color,
-        fg_color   = background_color,
+    triangle_dimension = 14
+    zero = 0
+    triangle_pointer = CTkCanvas(
+        window,
+        width   = triangle_dimension,
+        height  = triangle_dimension,
+        bg      = background_color,
+        highlightthickness = 0
     )
-
-    label_relx = 0.85
-    label_rely = row11
-    triangle_pointer.place(relx = label_relx - 0.1325, rely = label_rely, anchor="center")
-    message_label.place(   relx = label_relx,         rely = label_rely, anchor="center")
+    triangle_pointer.create_polygon(
+        triangle_dimension, zero,
+        zero,               (triangle_dimension/2),
+        triangle_dimension, triangle_dimension,
+        fill = "#ffbf00"
+    )
+    triangle_pointer.place(relx = 0.716, rely = row11, anchor = "center")
+    message_label.place(   relx = 0.85,  rely = row11, anchor = "center")
 
 def place_stop_button() -> None:
     stop_button = create_active_button(
@@ -3359,6 +3376,7 @@ class App():
     def __init__(self, window) -> None:
         self.toplevel_window = None
         window.protocol("WM_DELETE_WINDOW", on_app_close)
+
         window.title(f"{self._get_AI_engine_info()}")
         window.geometry("1000x675")
         window.resizable(False, False)
@@ -3383,6 +3401,7 @@ class App():
     def _get_AI_engine_info(self) -> str:
         try:
             AI_engine_v  = onnxruntime_get_version_string()
+            print(onnxruntime_get_available_providers())
             is_directml  = any("Dml" in p or "DirectML" in p for p in onnxruntime_get_available_providers())
             AI_providers = "DirectML" if is_directml else "CPU"
             return f"AI engine {AI_engine_v} + {AI_providers}"
@@ -3394,6 +3413,7 @@ class App():
 # Main functions ---------------------------
 
 if __name__ == "__main__":
+
     if os_path_exists(USER_PREFERENCE_PATH):
         print(f"[{app_name}] Preference file exist")
         with open(USER_PREFERENCE_PATH, "r") as json_file:
