@@ -3377,7 +3377,7 @@ class App():
         self.toplevel_window = None
         window.protocol("WM_DELETE_WINDOW", on_app_close)
 
-        window.title(f"{self._get_AI_engine_info()}")
+        window.title(self._get_window_title())
         window.geometry("1000x675")
         window.resizable(False, False)
         window.iconbitmap(find_by_relative_path("Assets" + os_separator + "logo.ico"))
@@ -3397,6 +3397,12 @@ class App():
 
         place_message_label()
         place_upscale_button()
+
+    def _get_window_title(self) -> str:
+        AI_engine_info = self._get_AI_engine_info()
+        if AI_engine_info:
+            return f"{app_name} - {AI_engine_info}"
+        return app_name
 
     def _get_AI_engine_info(self) -> str:
         try:
