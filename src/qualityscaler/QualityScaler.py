@@ -37,6 +37,7 @@ from os import (
     makedirs as os_makedirs,
     listdir  as os_listdir,
     remove   as os_remove,
+    replace  as os_replace,
     fdopen   as os_fdopen,
     open     as os_open,
     O_WRONLY as os_O_WRONLY,
@@ -62,6 +63,7 @@ from subprocess import (
 # Third-party library imports
 from download import download
 from natsort import natsorted
+from zstandard import ZstdDecompressor
 from psutil import (
     Process             as psutil_Process,
     IDLE_PRIORITY_CLASS as psutil_IDLE_PRIORITY_CLASS,
@@ -307,7 +309,13 @@ def ensure_AI_model_file(
 
     model_name = os_path_basename(model_path)
     os_makedirs(os_path_dirname(model_path), exist_ok = True)
-    download(get_model_url(model_name), model_path, replace = False, timeout=60 * 5)
+    zst_path = f"{model_path}.zst"
+    download(get_model_url(f"{model_name}.zst"), zst_path, replace = False, timeout=60 * 5)
+    temp_path = f"{model_path}.tmp"
+    with open(zst_path, "rb") as compressed, open(temp_path, "wb") as decompressed:
+        ZstdDecompressor().copy_stream(compressed, decompressed)
+    os_replace(temp_path, model_path)
+    os_remove(zst_path)
 
 
 class AI_upscale:
