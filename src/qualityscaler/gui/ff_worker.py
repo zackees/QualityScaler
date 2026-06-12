@@ -24,8 +24,14 @@ __all__ = ["CLOSE_APP_STATUS", "_frame_generation_process_main"]
 def _frame_generation_process_main(
         event_q,
         stop_mp_event,
-        settings: FrameGenSettings
+        settings: FrameGenSettings,
+        log_q=None,
         ) -> None:
+
+    if log_q is not None:
+        from qualityscaler.gui.console_log import redirect_child_process_output
+
+        redirect_child_process_output(log_q)
 
     from qualityscaler.fluidframes.pipeline import run_frame_generation_pipeline
 

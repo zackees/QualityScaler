@@ -24,8 +24,14 @@ CLOSE_APP_STATUS = "CloseApp"
 def _pipeline_process_main(
         event_q,
         stop_mp_event,
-        settings: UpscaleSettings
+        settings: UpscaleSettings,
+        log_q=None,
         ) -> None:
+
+    if log_q is not None:
+        from qualityscaler.gui.console_log import redirect_child_process_output
+
+        redirect_child_process_output(log_q)
 
     cancel_threading_event = threading_Event()
 

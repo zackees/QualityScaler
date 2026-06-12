@@ -92,7 +92,7 @@ def test_gui_defines_pipeline_process_entry_point() -> None:
 
     assert len(entry_points) == 1
     arg_names = [arg.arg for arg in entry_points[0].args.args]
-    assert arg_names == ["event_q", "stop_mp_event", "settings"]
+    assert arg_names == ["event_q", "stop_mp_event", "settings", "log_q"]
 
 
 def test_version_is_not_hardcoded_string_literal() -> None:
