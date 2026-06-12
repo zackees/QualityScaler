@@ -3,8 +3,9 @@
 [![Build](../../actions/workflows/build.yml/badge.svg)](../../actions/workflows/build.yml)
 [![Unit Tests](../../actions/workflows/unit-tests.yml/badge.svg)](../../actions/workflows/unit-tests.yml)
 [![Linting](../../actions/workflows/lint.yml/badge.svg)](../../actions/workflows/lint.yml)
+[![Install](../../actions/workflows/install.yml/badge.svg)](../../actions/workflows/install.yml)
 
-QualityScaler is an image and video upscaling GUI. This package is the lightweight launcher for that GUI: it installs small launcher dependencies, creates or reuses an isolated Python 3.10 runtime, installs the locked runtime dependencies there, and starts the GUI with `python -m qualityscaler.QualityScaler`.
+QualityScaler is an image and video upscaling GUI. This package is the lightweight launcher for that GUI: it installs small launcher dependencies, creates or reuses an isolated Python 3.11 runtime, installs the locked runtime dependencies there, and starts the GUI with `python -m qualityscaler.QualityScaler`.
 
 The installed commands are:
 

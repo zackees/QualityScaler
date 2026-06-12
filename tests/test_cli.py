@@ -389,3 +389,35 @@ def test_runtime_lock_uses_onnxruntime_directml_stack(cli_module: Any) -> None:
     assert "psutil==7.2.2" in lock_text
     assert "moviepy==" not in lock_text
     assert "torch==" not in lock_text
+
+
+def test_is_checkout_root_detects_quality_scaler_checkout(cli_module: Any, tmp_path: Path) -> None:
+    (tmp_path / "src" / "qualityscaler").mkdir(parents=True)
+    (tmp_path / "src" / "qualityscaler" / "QualityScaler.py").write_text("", encoding="utf-8")
+    (tmp_path / "pyproject.toml").write_text('[project]\nname = "quality_scaler"\n', encoding="utf-8")
+
+    assert cli_module._is_checkout_root(tmp_path)
+
+
+def test_is_checkout_root_rejects_other_projects(cli_module: Any, tmp_path: Path) -> None:
+    (tmp_path / "src" / "qualityscaler").mkdir(parents=True)
+    (tmp_path / "src" / "qualityscaler" / "QualityScaler.py").write_text("", encoding="utf-8")
+    (tmp_path / "pyproject.toml").write_text('[project]\nname = "other_project"\n', encoding="utf-8")
+
+    assert not cli_module._is_checkout_root(tmp_path)
+
+
+def test_source_checkout_root_uses_cwd_when_module_in_site_packages(cli_module: Any, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """pip install . then running from the repo must use local code, not PyPI."""
+    fake_site = tmp_path / "site-packages" / "qualityscaler"
+    fake_site.mkdir(parents=True)
+    monkeypatch.setattr(cli_module, "__file__", str(fake_site / "cli.py"))
+
+    checkout = tmp_path / "repo"
+    (checkout / "src" / "qualityscaler").mkdir(parents=True)
+    (checkout / "src" / "qualityscaler" / "QualityScaler.py").write_text("", encoding="utf-8")
+    (checkout / "pyproject.toml").write_text('[project]\nname = "quality_scaler"\n', encoding="utf-8")
+    monkeypatch.chdir(checkout)
+
+    assert cli_module._source_checkout_root() == checkout.resolve()
+    assert cli_module._self_requirement().startswith("quality-scaler @ file://")
