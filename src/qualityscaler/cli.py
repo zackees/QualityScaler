@@ -30,13 +30,30 @@ PACKAGE_MODULE_NAME = "quality_scaler"
 LOG_TAIL_LINES = 40
 
 
-def _source_checkout_root() -> Path | None:
-    """Return the repo root when this package is running from a checkout."""
-    root = Path(__file__).resolve().parents[2]
+def _is_checkout_root(root: Path) -> bool:
     pyproject = root / "pyproject.toml"
     source_file = root / "src" / "qualityscaler" / "QualityScaler.py"
-    if pyproject.exists() and source_file.exists():
-        return root
+    if not (pyproject.exists() and source_file.exists()):
+        return False
+    try:
+        pyproject_text = pyproject.read_text(encoding="utf-8")
+    except OSError:
+        return False
+    return 'name = "quality_scaler"' in pyproject_text
+
+
+def _source_checkout_root() -> Path | None:
+    """Return the repo root when running from a checkout.
+
+    Checks the module location first (editable installs), then the current
+    working directory and its parents (``pip install .`` run from the repo,
+    where the module lives in site-packages but local code may be newer than
+    the published wheel at the same version).
+    """
+    cwd = Path.cwd().resolve()
+    for root in (Path(__file__).resolve().parents[2], cwd, *cwd.parents):
+        if _is_checkout_root(root):
+            return root
     return None
 
 

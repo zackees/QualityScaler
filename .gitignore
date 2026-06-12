@@ -141,4 +141,5 @@ dmypy.json
 QualityScaler_temp
 src/qualityscaler/AI/
 src/qualityscaler/assets/
-src/qualityscaler/assets.zip.claude/worktrees/
+src/qualityscaler/assets.zip
+.claude/worktrees/

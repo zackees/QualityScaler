@@ -1,0 +1,31 @@
+name: Install
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  install:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: |
+            pyproject.toml
+            requirements.testing.txt
+      - name: Install package and test tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install .
+          python -m pip install -r requirements.testing.txt
+      - name: Resolve runtime lock (dry run)
+        run: |
+          pytest tests -m integration -vv
+      - name: Build managed runtime and run CLI end-to-end
+        run: |
+          qualityscaler --help
+          qualityscaler models
