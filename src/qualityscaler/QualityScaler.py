@@ -18,11 +18,6 @@ from multiprocessing import (
     freeze_support as multiprocessing_freeze_support
 )
 
-from json import (
-    load  as json_load,
-    dumps as json_dumps
-)
-
 from os import (
     sep     as os_separator,
     devnull as os_devnull
@@ -51,17 +46,9 @@ from cv2 import (
     CAP_PROP_FRAME_HEIGHT,
     CAP_PROP_FRAME_WIDTH,
     COLOR_BGR2RGB,
-    IMREAD_UNCHANGED,
     VideoCapture as opencv_VideoCapture,
     cvtColor     as opencv_cvtColor,
-    imdecode     as opencv_imdecode,
     resize       as opencv_resize,
-)
-
-from numpy import (
-    frombuffer as numpy_frombuffer,
-    ndarray    as numpy_ndarray,
-    uint8
 )
 
 # First-party imports (headless pipeline contract)
@@ -74,6 +61,83 @@ from qualityscaler.core import (
     UpscaleStopped,
     run_pipeline,
     app_version,
+)
+
+# First-party imports (toolkit-free GUI support modules)
+from qualityscaler.gui.constants import (
+    app_name,
+    githubme,
+    telegramme,
+    app_name_color,
+    background_color,
+    widget_background_color,
+    text_color,
+    MENU_LIST_SEPARATOR,
+    AI_models_list,
+    zoom_option_list,
+    AI_multithreading_list,
+    blending_list,
+    gpus_list,
+    keep_frames_list,
+    image_extension_list,
+    video_extension_list,
+    video_codec_list,
+    video_quality_list,
+    OUTPUT_PATH_CODED,
+    supported_file_extensions,
+    row0,
+    row1,
+    row2,
+    row3,
+    row4,
+    row5,
+    row6,
+    row7,
+    row8,
+    row10,
+    row11,
+    column_info1,
+    column_info2,
+    column_1,
+    column_2,
+    column_1_5,
+    column_1_4,
+    column_3,
+    column_2_9,
+    column_3_5,
+    little_textbox_width,
+    little_menu_width,
+)
+from qualityscaler.gui.info_texts import (
+    AI_MODEL_INFO,
+    AI_BLENDING_INFO,
+    AI_MULTITHREADING_INFO,
+    INPUT_RESOLUTION_INFO,
+    OUTPUT_RESOLUTION_INFO,
+    GPU_INFO,
+    VRAM_LIMITER_INFO,
+    IMAGE_OUTPUT_INFO,
+    VIDEO_EXTENSION_INFO,
+    VIDEO_CODEC_INFO,
+    KEEP_FRAMES_INFO,
+    VIDEO_QUALITY_INFO,
+    OUTPUT_PATH_INFO,
+)
+from qualityscaler.gui.media_info import (
+    image_read,
+    check_if_file_is_video,
+    get_image_resolution,
+)
+from qualityscaler.gui.preferences import load_preferences, save_preferences
+from qualityscaler.gui.state import (
+    UIState,
+    multithreading_from_label,
+    multithreading_to_label,
+    keep_frames_from_label,
+    keep_frames_to_label,
+    blending_from_label,
+    blending_to_label,
+    upscale_factor_for_model,
 )
 
 # GUI imports
@@ -113,15 +177,7 @@ def find_by_relative_path(relative_path: str) -> str:
 HERE = os_path_dirname(os_path_abspath(__file__))
 
 
-app_name   = "QualityScaler"
-version    = app_version()
-githubme   = "https://github.com/Djdefrag/QualityScaler/releases"
-telegramme = "https://linktr.ee/j3ngystudio"
-
-app_name_color          = "#F274EE"
-background_color        = "#000000"
-widget_background_color = "#181818"
-text_color              = "#B8B8B8"
+version = app_version()
 
 
 VRAM_model_usage = {
@@ -136,39 +192,6 @@ VRAM_model_usage = {
     'IRCNN_Lx1':       4,
 }
 
-MENU_LIST_SEPARATOR = [ "----" ]
-LVA_models        = [ "LVAx2"                      ]
-RealESR_models    = [ "RealESR_Gx4", "RealESR_Ax4" ]
-BSRGAN_models     = [ "BSRGANx2",    "BSRGANx4"    ]
-RealESRGAN_models = [ "RealESRGANx4"               ]
-MSharp_models     = [ "MSharpx4"                   ]
-IRCNN_models      = [ "IRCNN_Mx1",   "IRCNN_Lx1"   ]
-
-AI_models_list = (
-    LVA_models          + MENU_LIST_SEPARATOR +
-    RealESR_models      + MENU_LIST_SEPARATOR +
-    BSRGAN_models       + MENU_LIST_SEPARATOR +
-    RealESRGAN_models   + MENU_LIST_SEPARATOR +
-    MSharp_models       + MENU_LIST_SEPARATOR +
-    IRCNN_models
-)
-
-zoom_option_list       = [ "50%", "75%", "100%", "125%", "150%", "175%" ]
-AI_multithreading_list = [ "OFF", "2 threads", "4 threads", "6 threads", "8 threads"]
-blending_list          = [ "OFF", "Low", "Medium", "High" ]
-gpus_list              = [ "Auto", "GPU 1", "GPU 2", "GPU 3", "GPU 4" ]
-keep_frames_list       = [ "OFF", "ON" ]
-image_extension_list   = [ ".png", ".jpg", ".bmp", ".tiff" ]
-video_extension_list   = [ ".mp4", ".mkv", ".avi", ".mov" ]
-video_codec_list = [
-    "x264",       "x265",       MENU_LIST_SEPARATOR[0],
-    "h264_nvenc", "hevc_nvenc", MENU_LIST_SEPARATOR[0],
-    "h264_amf",   "hevc_amf",   MENU_LIST_SEPARATOR[0],
-    "h264_qsv",   "hevc_qsv",
-    ]
-video_quality_list     = [ "LOW", "MEDIUM", "HIGH" ]
-
-OUTPUT_PATH_CODED    = "Same path as input files"
 DOCUMENT_PATH        = os_path_join(os_path_expanduser('~'), 'Documents')
 USER_PREFERENCE_PATH = find_by_relative_path(f"{DOCUMENT_PATH}{os_separator}{app_name}_{version}_userpreference.json")
 
@@ -182,53 +205,6 @@ if not os_path_exists(ASSETS_TARGET_DIR):
     shutil_unpack_archive(ASSETS_TARGET_ZIP, ASSETS_TARGET_DIR)
 
 CLOSE_APP_STATUS = "CloseApp"
-
-
-offset_y_options = 0.0825
-row0  = 0.05
-row1  = 0.125
-row2  = row1 + offset_y_options
-row3  = row2 + offset_y_options
-row4  = row3 + offset_y_options
-row5  = row4 + offset_y_options
-row6  = row5 + offset_y_options
-row7  = row6 + offset_y_options
-row8  = row7 + offset_y_options
-row9  = row8 + offset_y_options
-row10 = row9 + offset_y_options
-row11 = row10 + offset_y_options
-
-column_offset = 0.2
-column_info1  = 0.625
-column_info2  = 0.858
-column_1      = 0.66
-column_2      = column_1 + column_offset
-column_1_5    = column_info1 + 0.08
-column_1_4    = column_1_5 - 0.0127
-column_3      = column_info2 + 0.08
-column_2_9    = column_3 - 0.0127
-column_3_5    = column_2 + 0.0355
-
-little_textbox_width = 74
-little_menu_width = 98
-
-
-
-supported_file_extensions = [
-    '.heic', '.jpg', '.jpeg', '.JPG', '.JPEG', '.png',
-    '.PNG', '.webp', '.WEBP', '.bmp', '.BMP', '.tif',
-    '.tiff', '.TIF', '.TIFF', '.mp4', '.MP4', '.webm',
-    '.WEBM', '.mkv', '.MKV', '.flv', '.FLV', '.gif',
-    '.GIF', '.m4v', ',M4V', '.avi', '.AVI', '.mov',
-    '.MOV', '.qt', '.3gp', '.mpg', '.mpeg', ".vob"
-]
-
-supported_video_extensions = [
-    '.mp4', '.MP4', '.webm', '.WEBM', '.mkv', '.MKV',
-    '.flv', '.FLV', '.gif', '.GIF', '.m4v', ',M4V',
-    '.avi', '.AVI', '.mov', '.MOV', '.qt', '.3gp',
-    '.mpg', '.mpeg', ".vob"
-]
 
 
 
@@ -826,24 +802,6 @@ def create_link_button(
 
 
 
-# File Utils functions ------------------------
-
-def image_read(file_path: str) -> numpy_ndarray:
-    with open(file_path, 'rb') as file:
-        return opencv_imdecode(
-            numpy_frombuffer(file.read(), uint8),
-            IMREAD_UNCHANGED
-        )
-
-def check_if_file_is_video(file: str) -> bool:
-    return any(video_extension in file for video_extension in supported_video_extensions)
-
-# Image/video Utils functions ------------------------
-
-def get_image_resolution(image: numpy_ndarray) -> tuple:
-    # Return height x width
-    return image.shape[0], image.shape[1]
-
 # Core functions ------------------------
 
 def _format_progress_event(event: UpscaleProgress) -> str:
@@ -990,7 +948,7 @@ def upscale_button_command() -> None:
         info_message.set("Loading")
 
         selected_output_path_value = selected_output_path.get()
-        blending_name = {0: "OFF", 0.3: "Low", 0.5: "Medium", 0.7: "High"}.get(selected_blending_factor, "OFF")
+        blending_name = blending_to_label(selected_blending_factor)
 
         settings = UpscaleSettings(
             input_paths          = list(selected_file_list),
@@ -1133,14 +1091,7 @@ def show_error_message(exception: str) -> None:
     )
 
 def get_upscale_factor() -> int:
-    global selected_AI_model
-    if MENU_LIST_SEPARATOR[0] in selected_AI_model: upscale_factor = 0
-    elif 'x1' in selected_AI_model: upscale_factor = 1
-    elif 'x2' in selected_AI_model: upscale_factor = 2
-    elif 'x3' in selected_AI_model: upscale_factor = 3
-    elif 'x4' in selected_AI_model: upscale_factor = 4
-
-    return upscale_factor
+    return upscale_factor_for_model(selected_AI_model)
 
 def open_files_action():
 
@@ -1199,19 +1150,11 @@ def select_AI_from_menu(selected_option: str) -> None:
 
 def select_AI_multithreading_from_menu(selected_option: str) -> None:
     global selected_AI_multithreading
-    if selected_option == "OFF":
-        selected_AI_multithreading = 1
-    else:
-        selected_AI_multithreading = int(selected_option.split()[0])
+    selected_AI_multithreading = multithreading_from_label(selected_option)
 
 def select_blending_from_menu(selected_option: str) -> None:
     global selected_blending_factor
-
-    match selected_option:
-        case "OFF": selected_blending_factor = 0
-        case "Low":      selected_blending_factor = 0.3
-        case "Medium":   selected_blending_factor = 0.5
-        case "High":     selected_blending_factor = 0.7
+    selected_blending_factor = blending_from_label(selected_option)
 
 def select_gpu_from_menu(selected_option: str) -> None:
     global selected_gpu
@@ -1219,8 +1162,7 @@ def select_gpu_from_menu(selected_option: str) -> None:
 
 def select_save_frame_from_menu(selected_option: str):
     global selected_keep_frames
-    if   selected_option == "ON":  selected_keep_frames = True
-    elif selected_option == "OFF": selected_keep_frames = False
+    selected_keep_frames = keep_frames_from_label(selected_option)
 
 def select_image_extension_from_menu(selected_option: str) -> None:
     global selected_image_extension
@@ -1340,56 +1282,7 @@ def place_app_zoom_and_links() -> None:
 def place_AI_menu() -> None:
 
     def open_info_AI_model():
-        option_list = [
-            "\n"
-            "LVAx2"
-            "\n"
-            " - Target: Live-action video upscaling"
-            "\n"
-            " - Tips: AI interpolation - OFF/Low"
-            "\n",
-
-            "\n"
-            "RealESR_Gx4 - RealESR_Ax4"
-            "\n"
-            " - Target: Animated/degraded live-action video upscaling"
-            "\n"
-            " - Tips: AI interpolation - Low for animation, Medium/High for live-action videos"
-            "\n",
-
-            "\n"
-            "BSRGANx2 - BSRGANx4"
-            "\n"
-            " - Target: High-quality image upscaling"
-            "\n"
-            " - Tips: can be used to upscale videos but will be slow"
-            "\n",
-
-            "\n"
-            "RealESRGANx4"
-            "\n"
-            " - Target: High-quality image upscaling"
-            "\n"
-            " - Tips: can be used to upscale videos but will be slow"
-            "\n",
-
-            "\n"
-            "MSharpx4"
-            "\n"
-            " - Target: Image upscaling and sharpening"
-            "\n"
-            " - Tips: to use on good quality photos (not too much noise)"
-            "\n",
-
-            "\n"
-            "IRCNN_Mx1 - IRCNN_Lx1"
-            "\n"
-            " - Target: Video/image denoising"
-            "\n"
-            " - Tips: AI interpolation - OFF"
-            "\n",
-
-        ]
+        option_list = AI_MODEL_INFO
 
         MessageBox(
             messageType   = "info",
@@ -1412,20 +1305,7 @@ def place_AI_menu() -> None:
 def place_AI_blending_menu() -> None:
 
     def open_info_AI_blending():
-        option_list = [
-            " Blending combines the upscaled image produced by AI with the original image",
-
-            " \n BLENDING OPTIONS\n" +
-            "  - [OFF] No blending is applied\n" +
-            "  - [Low] The result favors the upscaled image, with a slight touch of the original\n" +
-            "  - [Medium] A balanced blend of the original and upscaled images\n" +
-            "  - [High] The result favors the original image, with subtle enhancements from the upscaled version\n",
-
-            " \n NOTES\n" +
-            "  - Can enhance the quality of the final result\n" +
-            "  - Especially effective when using the tiling/merging function (useful for low VRAM)\n" +
-            "  - Particularly helpful at low input resolution percentages (<50%)\n",
-        ]
+        option_list = AI_BLENDING_INFO
 
         MessageBox(
             messageType   = "info",
@@ -1449,22 +1329,7 @@ def place_AI_blending_menu() -> None:
 def place_AI_multithreading_menu() -> None:
 
     def open_info_AI_multithreading():
-        option_list = [
-            " This option can enhance video upscaling performance, especially on powerful GPUs.",
-
-            " \n AI MULTITHREADING OPTIONS\n"
-            + "  - OFF - Processes one frame at a time.\n"
-            + "  - 2 threads - Processes two frames simultaneously.\n"
-            + "  - 4 threads - Processes four frames simultaneously.\n"
-            + "  - 6 threads - Processes six frames simultaneously.\n"
-            + "  - 8 threads - Processes eight frames simultaneously.\n",
-
-            " \n NOTES\n"
-            + "  - Higher thread counts increase CPU, GPU, and RAM usage.\n"
-            + "  - The GPU may be heavily stressed, potentially reaching high temperatures.\n"
-            + "  - Monitor your system's temperature to prevent overheating.\n"
-            + "  - If the chosen thread count exceeds GPU capacity, the app automatically selects an optimal value.\n",
-        ]
+        option_list = AI_MULTITHREADING_INFO
 
         MessageBox(
             messageType   = "info",
@@ -1487,16 +1352,7 @@ def place_AI_multithreading_menu() -> None:
 def place_input_output_resolution_textboxs() -> None:
 
     def open_info_input_resolution():
-        option_list = [
-            " A high value (>50%) will create high quality photos/videos but will be slower",
-            " While a low value (<50%) will create good quality photos/videos but will much faster",
-
-            " \n For example, for a 1080p (1920x1080) image/video\n" +
-            " - Input scale 25% => input to AI 270p (480x270)\n" +
-            " - Input scale 50% => input to AI 540p (960x540)\n" +
-            " - Input scale 75% => input to AI 810p (1440x810)\n" +
-            " - Input scale 100% => input to AI 1080p (1920x1080) \n",
-        ]
+        option_list = INPUT_RESOLUTION_INFO
 
         MessageBox(
             messageType   = "info",
@@ -1507,16 +1363,7 @@ def place_input_output_resolution_textboxs() -> None:
         )
 
     def open_info_output_resolution():
-        option_list = [
-            " 100% keeps the exact resolution produced by the AI upscaling",
-            " A lower value (<100%) will downscale the AI result to a smaller resolution, saving space and processing time",
-            " A higher value (>100%) will further upscale the AI output, increasing size but not adding real details",
-
-            "\n For example, if the AI generates a 4K (3840x2160) image/video\n" +
-            " - Output scale 50%  => final output 1920x1080 (downscaled)\n" +
-            " - Output scale 100% => final output 3840x2160 (AI native)\n" +
-            " - Output scale 200% => final output 7680x4320 (8K, interpolated)\n",
-        ]
+        option_list = OUTPUT_RESOLUTION_INFO
 
         MessageBox(
             messageType   = "info",
@@ -1549,19 +1396,7 @@ def place_input_output_resolution_textboxs() -> None:
 def place_gpu_gpuVRAM_menus() -> None:
 
     def open_info_gpu():
-        option_list = [
-            "\n It is possible to select up to 4 GPUs for AI processing\n" +
-            "  - Auto (the app will select the most powerful GPU)\n" +
-            "  - GPU 1 (GPU 0 in Task manager)\n" +
-            "  - GPU 2 (GPU 1 in Task manager)\n" +
-            "  - GPU 3 (GPU 2 in Task manager)\n" +
-            "  - GPU 4 (GPU 3 in Task manager)\n",
-
-            "\n NOTES\n" +
-            "  - Keep in mind that the more powerful the chosen gpu is, the faster the upscaling will be\n" +
-            "  - For optimal performance, it is essential to regularly update your GPUs drivers\n" +
-            "  - Selecting a GPU not present in the PC will cause the app to use the CPU for AI processing\n"
-        ]
+        option_list = GPU_INFO
 
         MessageBox(
             messageType   = "info",
@@ -1572,11 +1407,7 @@ def place_gpu_gpuVRAM_menus() -> None:
         )
 
     def open_info_vram_limiter():
-        option_list = [
-            " Make sure to enter the correct value based on the selected GPU's VRAM",
-            " Setting a value higher than the available VRAM may cause upscale failure",
-            " For integrated GPUs (Intel HD series - Vega 3, 5, 7), select 2 GB to avoid issues",
-        ]
+        option_list = VRAM_LIMITER_INFO
 
         MessageBox(
             messageType   = "info",
@@ -1608,35 +1439,7 @@ def place_gpu_gpuVRAM_menus() -> None:
 def place_image_video_output_menus() -> None:
 
     def open_info_image_output():
-        option_list = [
-            " \n PNG\n"
-            " - Very good quality\n"
-            " - Slow and heavy file\n"
-            " - Supports transparent images\n"
-            " - Lossless compression (no quality loss)\n"
-            " - Ideal for graphics, web images, and screenshots\n",
-
-            " \n JPG\n"
-            " - Good quality\n"
-            " - Fast and lightweight file\n"
-            " - Lossy compression (some quality loss)\n"
-            " - Ideal for photos and web images\n"
-            " - Does not support transparency\n",
-
-            " \n BMP\n"
-            " - Highest quality\n"
-            " - Slow and heavy file\n"
-            " - Uncompressed format (large file size)\n"
-            " - Ideal for raw images and high-detail graphics\n"
-            " - Does not support transparency\n",
-
-            " \n TIFF\n"
-            " - Highest quality\n"
-            " - Very slow and heavy file\n"
-            " - Supports both lossless and lossy compression\n"
-            " - Often used in professional photography and printing\n"
-            " - Supports multiple layers and transparency\n",
-        ]
+        option_list = IMAGE_OUTPUT_INFO
 
 
         MessageBox(
@@ -1648,31 +1451,7 @@ def place_image_video_output_menus() -> None:
         )
 
     def open_info_video_extension():
-        option_list = [
-            " \n MP4\n"
-            " - Most widely supported format\n"
-            " - Good quality with efficient compression\n"
-            " - Fast and lightweight file\n"
-            " - Ideal for streaming and general use\n",
-
-            " \n MKV\n"
-            " - High-quality format with multiple audio and subtitle tracks support\n"
-            " - Larger file size compared to MP4\n"
-            " - Supports almost any codec\n"
-            " - Ideal for high-quality videos and archiving\n",
-
-            " \n AVI\n"
-            " - Older format with high compatibility\n"
-            " - Larger file size due to less efficient compression\n"
-            " - Supports multiple codecs but lacks modern features\n"
-            " - Ideal for older devices and raw video storage\n",
-
-            " \n MOV\n"
-            " - High-quality format developed by Apple\n"
-            " - Large file size due to less compression\n"
-            " - Best suited for editing and high-quality playback\n"
-            " - Compatible mainly with macOS and iOS devices\n",
-        ]
+        option_list = VIDEO_EXTENSION_INFO
 
         MessageBox(
             messageType   = "info",
@@ -1702,23 +1481,7 @@ def place_image_video_output_menus() -> None:
 def place_video_codec_keep_frames_menus() -> None:
 
     def open_info_video_codec():
-        option_list = [
-            " \n SOFTWARE ENCODING (CPU)\n"
-            " - x264 | H.264 software encoding\n"
-            " - x265 | HEVC (H.265) software encoding\n",
-
-            " \n NVIDIA GPU ENCODING (NVENC - Optimized for NVIDIA GPU)\n"
-            " - h264_nvenc | H.264 hardware encoding\n"
-            " - hevc_nvenc | HEVC (H.265) hardware encoding\n",
-
-            " \n AMD GPU ENCODING (AMF - Optimized for AMD GPU)\n"
-            " - h264_amf | H.264 hardware encoding\n"
-            " - hevc_amf | HEVC (H.265) hardware encoding\n",
-
-            " \n INTEL GPU ENCODING (QSV - Optimized for Intel GPU)\n"
-            " - h264_qsv | H.264 hardware encoding\n"
-            " - hevc_qsv | HEVC (H.265) hardware encoding\n"
-        ]
+        option_list = VIDEO_CODEC_INFO
 
 
         MessageBox(
@@ -1730,13 +1493,7 @@ def place_video_codec_keep_frames_menus() -> None:
         )
 
     def open_info_keep_frames():
-        option_list = [
-            "\n ON \n" +
-            " The app does NOT delete the video frames after creating the upscaled video \n",
-
-            "\n OFF \n" +
-            " The app deletes the video frames after creating the upscaled video \n"
-        ]
+        option_list = KEEP_FRAMES_INFO
 
         MessageBox(
             messageType   = "info",
@@ -1767,16 +1524,7 @@ def place_video_codec_keep_frames_menus() -> None:
 def place_video_quality_menu() -> None:
 
     def open_info_video_quality():
-        option_list = [
-            "\n LOW \n" +
-            " Smaller files, visibly lower quality \n",
-
-            "\n MEDIUM \n" +
-            " Balanced size and quality \n",
-
-            "\n HIGH \n" +
-            " Best quality, larger files (x264 crf 18) \n"
-        ]
+        option_list = VIDEO_QUALITY_INFO
 
         MessageBox(
             messageType   = "info",
@@ -1799,13 +1547,7 @@ def place_video_quality_menu() -> None:
 def place_output_path_textbox() -> None:
 
     def open_info_output_path():
-        option_list = [
-              "\n The default path is defined by the input files."
-            + "\n For example: selecting a file from the Download folder,"
-            + "\n the app will save upscaled files in the Download folder \n",
-
-            " Otherwise it is possible to select the desired path using the SELECT button",
-        ]
+        option_list = OUTPUT_PATH_INFO
 
         MessageBox(
             messageType   = "info",
@@ -1888,52 +1630,23 @@ def place_upscale_button() -> None:
 # App related functions ---------------------------
 
 def save_user_choices_in_json() -> None:
-    global selected_app_zoom
-    global selected_AI_model
-    global selected_AI_multithreading
-    global selected_gpu
-    global selected_blending_factor
-    global selected_image_extension
-    global selected_video_extension
-    global selected_video_codec
-    global selected_video_quality
-    global tiles_resolution
-    global input_resize_factor
-
-    app_zoom_to_save        = selected_app_zoom
-    AI_model_to_save        = selected_AI_model
-    gpu_to_save             = selected_gpu
-    image_extension_to_save = selected_image_extension
-    video_extension_to_save = selected_video_extension
-    video_codec_to_save     = selected_video_codec
-    video_quality_to_save   = selected_video_quality
-    blending_to_save        = {0: "OFF", 0.3: "Low", 0.5: "Medium", 0.7: "High"}.get(selected_blending_factor)
-
-    keep_frames_to_save = "OFF"
-    if selected_keep_frames == True: keep_frames_to_save = "ON"
-
-    AI_multithreading_to_save = f"{selected_AI_multithreading} threads"
-    if selected_AI_multithreading == 1: AI_multithreading_to_save = "OFF"
-
-    user_preference = {
-        "default_app_zoom":             app_zoom_to_save,
-        "default_AI_model":             AI_model_to_save,
-        "default_AI_multithreading":    AI_multithreading_to_save,
-        "default_gpu":                  gpu_to_save,
-        "default_keep_frames":          keep_frames_to_save,
-        "default_image_extension":      image_extension_to_save,
-        "default_video_extension":      video_extension_to_save,
-        "default_video_codec":          video_codec_to_save,
-        "default_video_quality":        video_quality_to_save,
-        "default_blending":             blending_to_save,
-        "default_output_path":          selected_output_path.get(),
-        "default_input_resize_factor":  str(selected_input_resize_factor.get()),
-        "default_output_resize_factor": str(selected_output_resize_factor.get()),
-        "default_VRAM_limiter":         str(selected_VRAM_limiter.get()),
-    }
-    user_preference_json = json_dumps(user_preference)
-    with open(USER_PREFERENCE_PATH, "w") as preference_file:
-        preference_file.write(user_preference_json)
+    state = UIState(
+        app_zoom             = selected_app_zoom,
+        ai_model             = selected_AI_model,
+        ai_multithreading    = multithreading_to_label(selected_AI_multithreading),
+        gpu                  = selected_gpu,
+        keep_frames          = keep_frames_to_label(selected_keep_frames),
+        image_extension      = selected_image_extension,
+        video_extension      = selected_video_extension,
+        video_codec          = selected_video_codec,
+        video_quality        = selected_video_quality,
+        blending             = blending_to_label(selected_blending_factor),
+        output_path          = selected_output_path.get(),
+        input_resize_factor  = str(selected_input_resize_factor.get()),
+        output_resize_factor = str(selected_output_resize_factor.get()),
+        vram_limiter         = str(selected_VRAM_limiter.get()),
+    )
+    save_preferences(state, USER_PREFERENCE_PATH)
 
 def on_app_close() -> None:
     # 1. Save user choices in file
@@ -2005,38 +1718,24 @@ if __name__ == "__main__":
 
     if os_path_exists(USER_PREFERENCE_PATH):
         print(f"[{app_name}] Preference file exist")
-        with open(USER_PREFERENCE_PATH, "r") as json_file:
-            json_data = json_load(json_file)
-            default_app_zoom             = json_data.get("default_app_zoom",             "100%")
-            default_AI_model             = json_data.get("default_AI_model",             AI_models_list[0])
-            default_AI_multithreading    = json_data.get("default_AI_multithreading",    AI_multithreading_list[0])
-            default_gpu                  = json_data.get("default_gpu",                  gpus_list[0])
-            default_keep_frames          = json_data.get("default_keep_frames",          keep_frames_list[1])
-            default_image_extension      = json_data.get("default_image_extension",      image_extension_list[0])
-            default_video_extension      = json_data.get("default_video_extension",      video_extension_list[0])
-            default_video_codec          = json_data.get("default_video_codec",          video_codec_list[0])
-            default_video_quality        = json_data.get("default_video_quality",        "HIGH")
-            default_blending             = json_data.get("default_blending",             blending_list[1])
-            default_output_path          = json_data.get("default_output_path",          OUTPUT_PATH_CODED)
-            default_input_resize_factor  = json_data.get("default_input_resize_factor",  str(50))
-            default_output_resize_factor = json_data.get("default_output_resize_factor", str(100))
-            default_VRAM_limiter         = json_data.get("default_VRAM_limiter",         str(4))
     else:
         print(f"[{app_name}] Preference file does not exist, using default coded value")
-        default_app_zoom             = "100%"
-        default_AI_model             = AI_models_list[0]
-        default_AI_multithreading    = AI_multithreading_list[0]
-        default_gpu                  = gpus_list[0]
-        default_keep_frames          = keep_frames_list[1]
-        default_image_extension      = image_extension_list[0]
-        default_video_extension      = video_extension_list[0]
-        default_video_codec          = video_codec_list[0]
-        default_video_quality        = "HIGH"
-        default_blending             = blending_list[1]
-        default_output_path          = OUTPUT_PATH_CODED
-        default_input_resize_factor  = str(50)
-        default_output_resize_factor = str(100)
-        default_VRAM_limiter         = str(4)
+
+    user_preferences = load_preferences(USER_PREFERENCE_PATH)
+    default_app_zoom             = user_preferences.app_zoom
+    default_AI_model             = user_preferences.ai_model
+    default_AI_multithreading    = user_preferences.ai_multithreading
+    default_gpu                  = user_preferences.gpu
+    default_keep_frames          = user_preferences.keep_frames
+    default_image_extension      = user_preferences.image_extension
+    default_video_extension      = user_preferences.video_extension
+    default_video_codec          = user_preferences.video_codec
+    default_video_quality        = user_preferences.video_quality
+    default_blending             = user_preferences.blending
+    default_output_path          = user_preferences.output_path
+    default_input_resize_factor  = user_preferences.input_resize_factor
+    default_output_resize_factor = user_preferences.output_resize_factor
+    default_VRAM_limiter         = user_preferences.vram_limiter
 
     multiprocessing_freeze_support()
     set_appearance_mode("Dark")
@@ -2077,15 +1776,9 @@ if __name__ == "__main__":
     selected_video_codec     = default_video_codec
     selected_video_quality   = default_video_quality
 
-    if default_AI_multithreading == "OFF":
-        selected_AI_multithreading = 1
-    else:
-        selected_AI_multithreading = int(default_AI_multithreading.split()[0])
-
-    selected_keep_frames = False
-    if default_keep_frames == "ON": selected_keep_frames = True
-
-    selected_blending_factor = {"OFF": 0, "Low": 0.3, "Medium": 0.5, "High": 0.7}.get(default_blending)
+    selected_AI_multithreading = multithreading_from_label(default_AI_multithreading)
+    selected_keep_frames       = keep_frames_from_label(default_keep_frames)
+    selected_blending_factor   = blending_from_label(default_blending)
 
     selected_input_resize_factor.set(default_input_resize_factor)
     selected_output_resize_factor.set(default_output_resize_factor)
