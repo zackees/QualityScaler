@@ -27,6 +27,7 @@ TOOLKIT_FREE_SOURCES = [
         "ff_worker.py",
         "file_chooser.py",
         "info_texts.py",
+        "media_info.py",
         "preferences.py",
         "state.py",
         "worker.py",

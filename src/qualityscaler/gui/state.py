@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from qualityscaler.core import BLENDING_FACTORS
 from qualityscaler.gui.constants import (
     AI_models_list,
     AI_multithreading_list,
@@ -23,8 +24,8 @@ from qualityscaler.gui.constants import (
 )
 
 
-_BLENDING_FACTOR_BY_LABEL = {"OFF": 0, "Low": 0.3, "Medium": 0.5, "High": 0.7}
-_BLENDING_LABEL_BY_FACTOR = {0: "OFF", 0.3: "Low", 0.5: "Medium", 0.7: "High"}
+# Single source of truth is qualityscaler.core.settings.BLENDING_FACTORS.
+_BLENDING_LABEL_BY_FACTOR = {factor: label for label, factor in BLENDING_FACTORS.items()}
 
 
 @dataclass
@@ -69,7 +70,7 @@ def keep_frames_to_label(keep_frames: bool) -> str:
 
 
 def blending_from_label(label: str):
-    return _BLENDING_FACTOR_BY_LABEL.get(label)
+    return BLENDING_FACTORS.get(label)
 
 
 def blending_to_label(factor) -> str:

@@ -15,10 +15,6 @@ from typing import Callable
 from PIL.Image import open as pillow_image_open, fromarray as pillow_image_fromarray
 
 from cv2 import (
-    CAP_PROP_FPS,
-    CAP_PROP_FRAME_COUNT,
-    CAP_PROP_FRAME_HEIGHT,
-    CAP_PROP_FRAME_WIDTH,
     COLOR_BGR2RGB,
     VideoCapture as opencv_VideoCapture,
     cvtColor as opencv_cvtColor,
@@ -39,7 +35,7 @@ from customtkinter import (
 
 from qualityscaler.gui.assets import find_by_relative_path
 from qualityscaler.gui.constants import background_color, text_color, widget_background_color
-from qualityscaler.gui.media_info import check_if_file_is_video, get_image_resolution, image_read
+from qualityscaler.gui.media_info import check_if_file_is_video, describe_file, image_read
 
 
 @dataclass
@@ -406,45 +402,13 @@ class FileWidget(CTkScrollableFrame):
         button.grid(row = 0, column=2, pady=(7, 7), padx = (0, 7))
 
     def extract_file_info(self, file_path) -> tuple:
-
-        if check_if_file_is_video(file_path):
-            cap          = opencv_VideoCapture(file_path)
-            width        = round(cap.get(CAP_PROP_FRAME_WIDTH))
-            height       = round(cap.get(CAP_PROP_FRAME_HEIGHT))
-            num_frames   = int(cap.get(CAP_PROP_FRAME_COUNT))
-            frame_rate   = cap.get(CAP_PROP_FPS)
-            duration     = num_frames/frame_rate
-            minutes      = int(duration/60)
-            seconds      = duration % 60
-            cap.release()
-
-            file_icon  = extract_file_icon(file_path)
-            file_infos = f"{minutes}m:{round(seconds)}s - {num_frames}frames - {width}x{height} \n"
-        else:
-            height, width = get_image_resolution(image_read(file_path))
-            file_icon     = extract_file_icon(file_path)
-
-            file_infos = f"{width}x{height}\n"
-
-        if self.input_resize_factor != 0 and self.output_resize_factor != 0 and self.upscale_factor != 0 :
-            input_resized_height = int(height * (self.input_resize_factor/100))
-            input_resized_width  = int(width * (self.input_resize_factor/100))
-
-            upscaled_height = int(input_resized_height * self.upscale_factor)
-            upscaled_width  = int(input_resized_width * self.upscale_factor)
-
-            output_resized_height = int(upscaled_height * (self.output_resize_factor/100))
-            output_resized_width  = int(upscaled_width * (self.output_resize_factor/100))
-
-            label_in  = f"AI input ({self.input_resize_factor}%)"
-            label_ups = f"AI output (x{self.upscale_factor})"
-            label_out = f"File output ({self.output_resize_factor}%)"
-
-            file_infos += (
-                f"{label_in}\t= {input_resized_width}x{input_resized_height}\n"
-                f"{label_ups}\t= {upscaled_width}x{upscaled_height}\n"
-                f"{label_out}\t= {output_resized_width}x{output_resized_height}"
-            )
+        file_infos = describe_file(
+            file_path,
+            self.upscale_factor,
+            self.input_resize_factor,
+            self.output_resize_factor,
+        )
+        file_icon = extract_file_icon(file_path)
 
         return file_infos, file_icon
 
