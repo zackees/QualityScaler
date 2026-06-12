@@ -222,9 +222,24 @@ def run_qualityscaler(timeout_seconds: float | None = None) -> int:
     return returncode
 
 
-def main() -> int:
-    """Launch QualityScaler in its isolated Python 3.10 runtime."""
-    return run_qualityscaler(timeout_seconds=_timeout_seconds())
+def run_cli(argv: list[str]) -> int:
+    """Proxy CLI arguments into the managed runtime environment."""
+    iso = IsoEnv(_runtime_args())
+    runtime_env = _runtime_process_env()
+    with _parent_runtime_path(runtime_env):
+        proc = iso.open_proc(
+            ["python", "-u", "-m", "qualityscaler.cli_runtime", *argv],
+            env=runtime_env,
+        )
+        return proc.wait()
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Dispatch to the GUI (``ui`` subcommand) or proxy to the runtime CLI."""
+    argv = list(sys.argv[1:]) if argv is None else list(argv)
+    if argv and argv[0] == "ui":
+        return run_qualityscaler(timeout_seconds=_timeout_seconds())
+    return run_cli(argv)
 
 
 if __name__ == "__main__":
