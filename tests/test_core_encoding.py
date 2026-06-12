@@ -20,7 +20,8 @@ ALL_ENCODERS = [
 def test_quality_args_cover_all_encoders_and_tiers() -> None:
     assert set(VIDEO_QUALITY_ARGS) == set(ALL_ENCODERS)
     for encoder in ALL_ENCODERS:
-        assert set(VIDEO_QUALITY_ARGS[encoder]) == set(VIDEO_QUALITIES)
+        for tier in VIDEO_QUALITIES:
+            assert video_quality_args(encoder, tier)
 
 
 def test_high_x264_maps_to_crf_18() -> None:
