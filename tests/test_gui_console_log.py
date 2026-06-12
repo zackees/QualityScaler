@@ -4,7 +4,7 @@ import logging
 import queue
 import time
 
-from qualityscaler.gui.console_log import (
+from qualityscaler.app.console_log import (
     MP_LOG_SENTINEL,
     ConsoleLogHandler,
     ConsoleSink,

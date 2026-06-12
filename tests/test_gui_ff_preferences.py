@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from qualityscaler.gui.ff_preferences import load_ff_preferences, save_ff_preferences
-from qualityscaler.gui.ff_state import FFUIState
+from qualityscaler.app.ff_preferences import load_ff_preferences, save_ff_preferences
+from qualityscaler.app.ff_state import FFUIState
 
 
 def test_load_missing_file_returns_defaults(tmp_path: Path) -> None:

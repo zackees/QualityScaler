@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from typing import Optional, cast
 
-from qualityscaler.gui.constants import OUTPUT_PATH_CODED
-from qualityscaler.gui.ff_controller import FrameGenController, build_settings, validate
-from qualityscaler.gui.ff_state import FFUIState
+from qualityscaler.app.constants import OUTPUT_PATH_CODED
+from qualityscaler.app.controllers.framegen import FrameGenController, build_settings, validate
+from qualityscaler.app.ff_state import FFUIState
 
 
 def _valid_state() -> FFUIState:

@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import pytest
 
-from qualityscaler.gui.constants import (
+from qualityscaler.app.constants import (
     AI_models_list,
     AI_multithreading_list,
     blending_list,
     keep_frames_list,
 )
-from qualityscaler.gui.state import (
+from qualityscaler.app.state import (
     UIState,
     blending_from_label,
     blending_to_label,

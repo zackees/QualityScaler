@@ -5,9 +5,9 @@ from typing import Optional, cast
 import pytest
 
 from qualityscaler.core import UpscaleProgress
-from qualityscaler.gui.constants import MENU_LIST_SEPARATOR, OUTPUT_PATH_CODED
-from qualityscaler.gui.controller import UpscaleController, build_settings, format_progress_event, validate
-from qualityscaler.gui.state import UIState
+from qualityscaler.app.constants import MENU_LIST_SEPARATOR, OUTPUT_PATH_CODED
+from qualityscaler.app.controllers.upscale import UpscaleController, build_settings, format_progress_event, validate
+from qualityscaler.app.state import UIState
 
 
 def _valid_state(**overrides) -> UIState:

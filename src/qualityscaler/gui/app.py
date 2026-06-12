@@ -34,8 +34,8 @@ from qualityscaler.core import (
     UpscaleStopped,
 )
 
-from qualityscaler.gui.assets import ensure_assets, find_by_relative_path
-from qualityscaler.gui.constants import (
+from qualityscaler.app.assets import ensure_assets, find_by_relative_path
+from qualityscaler.app.constants import (
     app_name,
     app_name_color,
     background_color,
@@ -61,15 +61,15 @@ from qualityscaler.gui.constants import (
     column_1_4, column_1_5, column_2_9, column_3_5,
     little_textbox_width, little_menu_width,
 )
-from qualityscaler.gui.console_log import ConsoleSink, install_console_redirectors
+from qualityscaler.app.console_log import ConsoleSink, install_console_redirectors
 from qualityscaler.gui.console_widget import ConsoleWidget
-from qualityscaler.gui.controller import (
+from qualityscaler.app.controllers.upscale import (
     UpscaleController,
     build_settings,
     format_progress_event,
     validate,
 )
-from qualityscaler.gui.info_texts import (
+from qualityscaler.app.info_texts import (
     AI_MODEL_INFO,
     AI_BLENDING_INFO,
     AI_MULTITHREADING_INFO,
@@ -84,12 +84,12 @@ from qualityscaler.gui.info_texts import (
     VIDEO_QUALITY_INFO,
     OUTPUT_PATH_INFO,
 )
-from qualityscaler.gui.ff_controller import FrameGenController
+from qualityscaler.app.controllers.framegen import FrameGenController
 from qualityscaler.gui.ff_panel import FluidFramesPanel
-from qualityscaler.gui.file_chooser import get_initial_dir, update_last_used_dir
-from qualityscaler.gui.ff_preferences import FF_USER_PREFERENCE_PATH, load_ff_preferences
-from qualityscaler.gui.preferences import USER_PREFERENCE_PATH, load_preferences, save_preferences
-from qualityscaler.gui.state import UIState, upscale_factor_for_model
+from qualityscaler.app.file_chooser import get_initial_dir, update_last_used_dir
+from qualityscaler.app.ff_preferences import FF_USER_PREFERENCE_PATH, load_ff_preferences
+from qualityscaler.app.preferences import USER_PREFERENCE_PATH, load_preferences, save_preferences
+from qualityscaler.app.state import UIState, upscale_factor_for_model
 from qualityscaler.gui.widgets import (
     AppFonts,
     AppIcons,

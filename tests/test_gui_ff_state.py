@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from qualityscaler.gui.constants import OUTPUT_PATH_CODED
-from qualityscaler.gui.ff_state import (
+from qualityscaler.app.constants import OUTPUT_PATH_CODED
+from qualityscaler.app.ff_state import (
     FFUIState,
     generation_factor_from_label,
     video_output_from_label,
