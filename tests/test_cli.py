@@ -61,7 +61,7 @@ def cli_module(monkeypatch: pytest.MonkeyPatch) -> Any:
     sys.modules.pop("qualityscaler.cli", None)
 
 
-def test_main_passes_launch_timeout_to_runtime(
+def test_main_ui_passes_launch_timeout_to_runtime(
     cli_module: Any,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -74,8 +74,60 @@ def test_main_passes_launch_timeout_to_runtime(
 
     monkeypatch.setattr(cli_module, "run_qualityscaler", fake_run_qualityscaler)
 
-    assert cli_module.main() == 17
+    assert cli_module.main(["ui"]) == 17
     assert calls == [2.5]
+
+
+def test_main_without_args_proxies_to_runtime_cli(
+    cli_module: Any,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[list[str]] = []
+    monkeypatch.setattr(cli_module, "run_cli", lambda argv: calls.append(argv) or 7)
+
+    assert cli_module.main([]) == 7
+    assert calls == [[]]
+
+
+def test_main_proxies_cli_args_to_runtime_cli(
+    cli_module: Any,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[list[str]] = []
+    monkeypatch.setattr(cli_module, "run_cli", lambda argv: calls.append(argv) or 0)
+
+    assert cli_module.main(["upscale", "photo.png", "--quiet"]) == 0
+    assert calls == [["upscale", "photo.png", "--quiet"]]
+
+
+def test_main_uses_sys_argv_when_argv_omitted(
+    cli_module: Any,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[list[str]] = []
+    monkeypatch.setattr(cli_module, "run_cli", lambda argv: calls.append(argv) or 3)
+    monkeypatch.setattr(cli_module.sys, "argv", ["qualityscaler", "models"])
+
+    assert cli_module.main() == 3
+    assert calls == [["models"]]
+
+
+def test_run_cli_executes_cli_runtime_module_and_propagates_exit_code(
+    cli_module: Any,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    open_calls: list[tuple[object, list[str], dict[str, Any]]] = []
+    process = _FakeProcess(returncode=5)
+    _install_fake_iso_env(cli_module, monkeypatch, process, open_calls)
+
+    assert cli_module.run_cli(["upscale", "photo.png", "-m", "RealESR_Gx4"]) == 5
+
+    assert len(open_calls) == 1
+    _, command, process_args = open_calls[0]
+    assert command == ["python", "-u", "-m", "qualityscaler.cli_runtime", "upscale", "photo.png", "-m", "RealESR_Gx4"]
+    assert process_args["env"] == {"PATH": "x"}
+    assert "stdout" not in process_args
+    assert "stderr" not in process_args
 
 
 def test_runtime_args_use_override_path_and_locked_python(
@@ -314,6 +366,11 @@ def test_runtime_lock_includes_pillow_for_app_images(cli_module: Any) -> None:
     assert "moviepy==" not in lock_text
     assert "imageio==" not in lock_text
     assert "imageio-ffmpeg==" not in lock_text
+
+
+def test_runtime_lock_includes_static_ffmpeg(cli_module: Any) -> None:
+    lock_text = cli_module._runtime_lock_text()
+    assert "static-ffmpeg==3.0" in lock_text
 
 
 def test_runtime_lock_uses_onnxruntime_directml_stack(cli_module: Any) -> None:
