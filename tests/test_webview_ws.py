@@ -29,7 +29,7 @@ def _wait_for_client(server: WsServer, timeout: float = 5.0) -> None:
 
 @pytest.fixture
 def sink() -> ConsoleSink:
-    return ConsoleSink(strip_ansi=False)
+    return ConsoleSink()
 
 
 @pytest.fixture

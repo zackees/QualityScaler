@@ -5,7 +5,7 @@
 [![Linting](../../actions/workflows/lint.yml/badge.svg)](../../actions/workflows/lint.yml)
 [![Install](../../actions/workflows/install.yml/badge.svg)](../../actions/workflows/install.yml)
 
-QualityScaler is an image and video upscaling GUI. This package is the lightweight launcher for that GUI: it installs small launcher dependencies, creates or reuses an isolated Python 3.11 runtime, installs the locked runtime dependencies there, and starts the GUI with `python -m qualityscaler.QualityScaler`.
+QualityScaler is an image and video upscaling GUI. This package is the lightweight launcher for that GUI: it installs small launcher dependencies, creates or reuses an isolated Python 3.11 runtime, installs the locked runtime dependencies there, and starts the system-webview GUI with `python -m qualityscaler.webview` (pywebview window + TypeScript frontend with an xterm.js console).
 
 The installed commands are:
 
@@ -53,6 +53,19 @@ Run linting for the lightweight launcher and tests:
 ```sh
 ruff check src/qualityscaler/cli.py tests
 ```
+
+### Frontend
+
+The GUI frontend lives in `frontend/` (TypeScript + Vite + React). The built bundle is committed under `src/qualityscaler/webview/assets/`, so end users never need Node. For frontend development:
+
+```sh
+cd frontend
+npm install
+npm run dev    # Vite dev server on :5173
+python -m qualityscaler.webview --dev-url http://localhost:5173
+```
+
+Run `npm run build` to regenerate `src/qualityscaler/webview/assets/` before committing frontend changes.
 
 ## Versions
 

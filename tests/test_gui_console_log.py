@@ -8,12 +8,10 @@ from qualityscaler.app.console_log import (
     MP_LOG_SENTINEL,
     ConsoleLogHandler,
     ConsoleSink,
-    LineRing,
     MpLogBridge,
     MpQueueWriter,
     TkStreamRedirector,
     split_terminal_text,
-    strip_ansi,
 )
 
 
@@ -39,14 +37,6 @@ class TestSplitTerminalText:
         assert remainder == ""
 
 
-class TestStripAnsi:
-    def test_removes_color_codes(self) -> None:
-        assert strip_ansi("\x1b[31mred\x1b[0m") == "red"
-
-    def test_plain_text_unchanged(self) -> None:
-        assert strip_ansi("plain") == "plain"
-
-
 class TestConsoleSink:
     def test_drain_returns_put_lines_in_order(self) -> None:
         sink = ConsoleSink()
@@ -69,13 +59,9 @@ class TestConsoleSink:
     def test_drain_on_empty_sink(self) -> None:
         assert ConsoleSink().drain() == []
 
-    def test_put_strips_ansi(self) -> None:
+    def test_put_preserves_raw_text(self) -> None:
+        """Raw ANSI passes through untouched — xterm.js renders the escapes."""
         sink = ConsoleSink()
-        sink.put("\x1b[1mbold\x1b[0m")
-        assert sink.drain()[0].text == "bold"
-
-    def test_strip_ansi_false_preserves_raw_text(self) -> None:
-        sink = ConsoleSink(strip_ansi=False)
         sink.put("\x1b[1mbold\x1b[0m")
         assert sink.drain()[0].text == "\x1b[1mbold\x1b[0m"
 
@@ -202,23 +188,3 @@ class TestMpQueueWriterAndBridge:
         log_q.put(MP_LOG_SENTINEL)
         bridge._thread.join(timeout=5)
         assert not bridge._thread.is_alive()
-
-
-class TestLineRing:
-    def test_no_overflow_below_cap(self) -> None:
-        ring = LineRing(max_lines=3)
-        assert ring.add(2) == 0
-        assert ring.count == 2
-
-    def test_overflow_returns_lines_to_evict(self) -> None:
-        ring = LineRing(max_lines=3)
-        ring.add(3)
-        assert ring.add(2) == 2
-        assert ring.count == 3
-
-    def test_clear_resets_count(self) -> None:
-        ring = LineRing(max_lines=3)
-        ring.add(3)
-        ring.clear()
-        assert ring.count == 0
-        assert ring.add(1) == 0

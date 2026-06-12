@@ -1,8 +1,8 @@
 """Webview host entry point: native window + WebSocket + RPC bridge.
 
-Mirrors :func:`qualityscaler.gui.app.main` (console sink + redirectors,
-controllers with a log sink, freeze_support first), but renders the UI in a
-system webview (pywebview / WebView2 on Windows) instead of CustomTkinter.
+Wires up the console sink + redirectors and the controllers with a log sink
+(``freeze_support`` first), then renders the UI in a system webview
+(pywebview / WebView2 on Windows).
 
 Run with ``python -m qualityscaler.webview`` for the bundled frontend, or
 ``python -m qualityscaler.webview --dev-url http://localhost:5173`` against a
@@ -106,7 +106,7 @@ def main(argv: list[str] | None = None) -> int:
     ensure_assets()
 
     # Raw text (ANSI + \r progress) goes straight to xterm.js in the frontend.
-    console_sink = ConsoleSink(strip_ansi=False)
+    console_sink = ConsoleSink()
     install_console_redirectors(console_sink)
 
     upscale_controller = UpscaleController(log_sink=console_sink)

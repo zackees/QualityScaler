@@ -6,14 +6,11 @@ from pathlib import Path
 
 SRC_ROOT = Path(__file__).resolve().parents[1] / "src" / "qualityscaler"
 SHIM_SOURCE = SRC_ROOT / "QualityScaler.py"
-GUI_DIR = SRC_ROOT / "gui"
 APP_DIR = SRC_ROOT / "app"
 WORKER_SOURCE = APP_DIR / "workers" / "upscale.py"
 CONSTANTS_SOURCE = APP_DIR / "constants.py"
 
-APP_AND_GUI_SOURCES = (
-    sorted(GUI_DIR.glob("*.py")) + sorted(APP_DIR.rglob("*.py")) + [SHIM_SOURCE]
-)
+APP_SOURCES = sorted(APP_DIR.rglob("*.py")) + [SHIM_SOURCE]
 
 TOOLKIT_FREE_SOURCES = [
     APP_DIR / "__init__.py",
@@ -34,7 +31,6 @@ TOOLKIT_FREE_SOURCES = [
     APP_DIR / "workers" / "__init__.py",
     APP_DIR / "workers" / "upscale.py",
     APP_DIR / "workers" / "framegen.py",
-    GUI_DIR / "__init__.py",
 ]
 
 
@@ -46,8 +42,8 @@ def _tree(path: Path) -> ast.Module:
     return ast.parse(_source(path))
 
 
-def test_pipeline_code_removed_from_gui() -> None:
-    for path in APP_AND_GUI_SOURCES:
+def test_pipeline_code_removed_from_app_layer() -> None:
+    for path in APP_SOURCES:
         source = _source(path)
         tree = ast.parse(source)
 
@@ -67,9 +63,9 @@ def test_pipeline_code_removed_from_gui() -> None:
         assert "MODEL_MANIFEST_BASE_URL" not in source, path.name
 
 
-def test_gui_imports_core_contract() -> None:
+def test_app_imports_core_contract() -> None:
     core_imports: set[str] = set()
-    for path in APP_AND_GUI_SOURCES:
+    for path in APP_SOURCES:
         for node in ast.walk(_tree(path)):
             if isinstance(node, ast.ImportFrom) and node.module == "qualityscaler.core":
                 core_imports.update(alias.name for alias in node.names)
@@ -86,7 +82,7 @@ def test_gui_imports_core_contract() -> None:
     assert expected <= core_imports
 
 
-def test_gui_defines_pipeline_process_entry_point() -> None:
+def test_app_defines_pipeline_process_entry_point() -> None:
     tree = _tree(WORKER_SOURCE)
     entry_points = [
         node
@@ -128,12 +124,12 @@ def test_toolkit_free_modules_do_not_import_gui_toolkit() -> None:
             assert not (modules & forbidden), f"{path.name} imports a GUI toolkit"
 
 
-def test_shim_is_small_and_delegates_to_gui_app() -> None:
+def test_shim_is_small_and_delegates_to_webview_host() -> None:
     tree = _tree(SHIM_SOURCE)
     imports = [
         node
         for node in ast.walk(tree)
-        if isinstance(node, ast.ImportFrom) and node.module == "qualityscaler.gui.app"
+        if isinstance(node, ast.ImportFrom) and node.module == "qualityscaler.webview.host"
     ]
     assert len(imports) == 1
     assert any(alias.name == "main" for alias in imports[0].names)
