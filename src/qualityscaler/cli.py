@@ -210,8 +210,13 @@ def _read_log_tail(log_path: Path, max_lines: int = LOG_TAIL_LINES) -> str:
     return _tail_text(text, max_lines)
 
 
-def run_qualityscaler(timeout_seconds: float | None = None) -> int:
-    """Run the GUI inside the managed runtime environment."""
+def run_qualityscaler(timeout_seconds: float | None = None, webview: bool = False) -> int:
+    """Run the GUI inside the managed runtime environment.
+
+    ``webview=True`` launches the system-webview host
+    (``qualityscaler.webview``) instead of the default CustomTkinter GUI.
+    """
+    gui_module = "qualityscaler.webview" if webview else "qualityscaler.QualityScaler"
     iso = IsoEnv(_runtime_args())
     runtime_env = _runtime_process_env()
     log_dir = _default_log_dir()
@@ -220,7 +225,7 @@ def run_qualityscaler(timeout_seconds: float | None = None) -> int:
 
     with _parent_runtime_path(runtime_env), log_path.open("wb") as log_file:
         proc = iso.open_proc(
-            ["python", "-u", "-m", "qualityscaler.QualityScaler"],
+            ["python", "-u", "-m", gui_module],
             env=runtime_env,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
@@ -269,7 +274,8 @@ def main(argv: list[str] | None = None) -> int:
     """Dispatch to the GUI (``ui`` subcommand) or proxy to the runtime CLI."""
     argv = list(sys.argv[1:]) if argv is None else list(argv)
     if argv and argv[0] == "ui":
-        return run_qualityscaler(timeout_seconds=_timeout_seconds())
+        webview = "--webview" in argv[1:]
+        return run_qualityscaler(timeout_seconds=_timeout_seconds(), webview=webview)
     return run_cli(argv)
 
 

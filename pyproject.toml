@@ -29,6 +29,7 @@ cache-keys = [
 
 [tool.setuptools.package-data]
 qualityscaler = ["requirements.runtime.lock.txt"]
+"qualityscaler.webview" = ["assets/*", "assets/**/*"]
 "qualityscaler._vendor.iso_env" = ["LICENSE", "assets/example.txt"]
 
 

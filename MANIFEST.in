@@ -4,4 +4,5 @@ include src/qualityscaler/AI/readme.txt
 include src/qualityscaler/requirements.runtime.lock.txt
 include src/qualityscaler/_vendor/iso_env/LICENSE
 recursive-include src/qualityscaler/_vendor/iso_env/assets *
+recursive-include src/qualityscaler/webview/assets *
 exclude assets.zip

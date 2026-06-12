@@ -143,3 +143,6 @@ src/qualityscaler/AI/
 src/qualityscaler/assets/
 src/qualityscaler/assets.zip
 .claude/worktrees/
+
+# Frontend
+frontend/node_modules/
