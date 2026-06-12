@@ -92,16 +92,69 @@ def _make_fake_core(events: list[Any], created_jobs: list[Any]) -> types.ModuleT
     return core
 
 
+def _make_fake_fluidframes(events: list[Any], created_jobs: list[Any]) -> types.ModuleType:
+    fluidframes = types.ModuleType("qualityscaler.fluidframes")
+
+    @dataclass
+    class FrameGenSettings:
+        input_paths: list[str] = field(default_factory=list)
+        output_path: str | None = None
+        ai_model: str = "RIFE"
+        gpu: str = "Auto"
+        frame_gen_factor: int = 2
+        slowmotion: bool = False
+        keep_frames: bool = False
+        image_extension: str = ".jpg"
+        video_extension: str = ".mp4"
+        video_codec: str = "x264"
+        video_quality: str = "HIGH"
+        input_resize_factor: float = 0.5
+        cpu_number: int = 4
+
+        def validate(self) -> None:
+            if not self.input_paths:
+                raise ValueError("at least one input path is required")
+            if self.input_paths == ["invalid.mp4"]:
+                raise ValueError("invalid input video")
+
+    class FrameGenJob:
+        def __init__(self, settings: Any) -> None:
+            self.settings = settings
+            self.started = False
+            self.cancelled = False
+            created_jobs.append(self)
+
+        def start(self) -> None:
+            self.started = True
+
+        def cancel(self) -> None:
+            self.cancelled = True
+
+        def events(self) -> Iterator[Any]:
+            yield from events
+
+        def wait(self) -> None:
+            pass
+
+    fluidframes.FrameGenSettings = FrameGenSettings
+    fluidframes.FrameGenJob = FrameGenJob
+    fluidframes.FF_AI_MODELS = ["RIFE", "RIFE_Lite"]
+    fluidframes.FF_FRAME_GEN_FACTORS = (2, 4, 8)
+    return fluidframes
+
+
 @pytest.fixture()
 def runtime_env(monkeypatch: pytest.MonkeyPatch) -> Any:
-    """Import qualityscaler.cli_runtime against a scripted fake core module."""
+    """Import qualityscaler.cli_runtime against scripted fake core/fluidframes modules."""
     events: list[Any] = []
     created_jobs: list[Any] = []
     core = _make_fake_core(events, created_jobs)
+    fluidframes = _make_fake_fluidframes(events, created_jobs)
     monkeypatch.setitem(sys.modules, "qualityscaler.core", core)
+    monkeypatch.setitem(sys.modules, "qualityscaler.fluidframes", fluidframes)
     sys.modules.pop("qualityscaler.cli_runtime", None)
     module = importlib.import_module("qualityscaler.cli_runtime")
-    yield types.SimpleNamespace(module=module, core=core, events=events, jobs=created_jobs)
+    yield types.SimpleNamespace(module=module, core=core, fluidframes=fluidframes, events=events, jobs=created_jobs)
     sys.modules.pop("qualityscaler.cli_runtime", None)
 
 
@@ -272,6 +325,143 @@ def test_upscale_rejects_unknown_model(runtime_env: Any) -> None:
         runtime_env.module.main(["upscale", "a.png", "--model", "NotAModel"])
 
     assert excinfo.value.code == 2
+
+
+def test_fluidframes_maps_args_to_settings(runtime_env: Any) -> None:
+    runtime_env.events.append(runtime_env.core.UpscaleCompleted(output_paths=("out.mp4",)))
+
+    exit_code = runtime_env.module.main(
+        [
+            "fluidframes",
+            "a.mp4",
+            "b.mp4",
+            "--model",
+            "RIFE_Lite",
+            "--factor",
+            "4",
+            "--slowmotion",
+            "--output",
+            "outdir",
+            "--gpu",
+            "GPU 2",
+            "--input-resize",
+            "75",
+            "--image-ext",
+            ".png",
+            "--video-ext",
+            ".avi",
+            "--codec",
+            "x265",
+            "--video-quality",
+            "MEDIUM",
+            "--keep-frames",
+            "--cpus",
+            "6",
+            "--quiet",
+        ]
+    )
+
+    assert exit_code == 0
+    assert len(runtime_env.jobs) == 1
+    job = runtime_env.jobs[0]
+    assert job.started
+    settings = job.settings
+    assert settings.input_paths == ["a.mp4", "b.mp4"]
+    assert settings.output_path == "outdir"
+    assert settings.ai_model == "RIFE_Lite"
+    assert settings.gpu == "GPU 2"
+    assert settings.frame_gen_factor == 4
+    assert settings.slowmotion is True
+    assert settings.keep_frames is True
+    assert settings.image_extension == ".png"
+    assert settings.video_extension == ".avi"
+    assert settings.video_codec == "x265"
+    assert settings.video_quality == "MEDIUM"
+    assert settings.input_resize_factor == 0.75
+    assert settings.cpu_number == 6
+
+
+def test_fluidframes_defaults(runtime_env: Any) -> None:
+    runtime_env.events.append(runtime_env.core.UpscaleCompleted(output_paths=()))
+
+    assert runtime_env.module.main(["fluidframes", "a.mp4", "-q"]) == 0
+
+    settings = runtime_env.jobs[0].settings
+    assert settings.output_path is None
+    assert settings.ai_model == "RIFE"
+    assert settings.gpu == "Auto"
+    assert settings.frame_gen_factor == 2
+    assert settings.slowmotion is False
+    assert settings.keep_frames is False
+    assert settings.image_extension == ".jpg"
+    assert settings.video_extension == ".mp4"
+    assert settings.video_codec == "x264"
+    assert settings.video_quality == "HIGH"
+    assert settings.input_resize_factor == 0.5
+    assert settings.cpu_number == 4
+
+
+def test_fluidframes_completed_prints_output_paths_to_stdout(
+    runtime_env: Any,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    runtime_env.events.append(runtime_env.core.UpscaleCompleted(output_paths=("one.mp4", "two.mp4")))
+
+    assert runtime_env.module.main(["fluidframes", "a.mp4"]) == 0
+
+    assert capsys.readouterr().out == "one.mp4\ntwo.mp4\n"
+
+
+def test_fluidframes_error_exits_1_and_prints_message(
+    runtime_env: Any,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    runtime_env.events.append(runtime_env.core.UpscaleError(message="model download failed"))
+
+    assert runtime_env.module.main(["fluidframes", "a.mp4"]) == 1
+
+    assert "model download failed" in capsys.readouterr().err
+
+
+def test_fluidframes_stopped_exits_130(runtime_env: Any) -> None:
+    runtime_env.events.append(runtime_env.core.UpscaleStopped())
+
+    assert runtime_env.module.main(["fluidframes", "a.mp4"]) == 130
+
+
+def test_fluidframes_invalid_settings_is_argparse_error(
+    runtime_env: Any,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as excinfo:
+        runtime_env.module.main(["fluidframes", "invalid.mp4"])
+
+    assert excinfo.value.code == 2
+    assert "invalid input video" in capsys.readouterr().err
+    assert runtime_env.jobs == []
+
+
+def test_fluidframes_rejects_unknown_model(runtime_env: Any) -> None:
+    with pytest.raises(SystemExit) as excinfo:
+        runtime_env.module.main(["fluidframes", "a.mp4", "--model", "NotAModel"])
+
+    assert excinfo.value.code == 2
+
+
+def test_fluidframes_rejects_invalid_factor(runtime_env: Any) -> None:
+    with pytest.raises(SystemExit) as excinfo:
+        runtime_env.module.main(["fluidframes", "a.mp4", "--factor", "3"])
+
+    assert excinfo.value.code == 2
+
+
+def test_models_fluidframes_lists_rife_models(
+    runtime_env: Any,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    assert runtime_env.module.main(["models", "--fluidframes"]) == 0
+
+    assert capsys.readouterr().out == "RIFE\nRIFE_Lite\n"
 
 
 def test_models_lists_models_one_per_line(

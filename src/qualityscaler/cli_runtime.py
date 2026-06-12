@@ -17,12 +17,21 @@ from qualityscaler.core import (
     VIDEO_QUALITIES,
     app_version,
 )
+from qualityscaler.fluidframes import (
+    FF_AI_MODELS,
+    FF_FRAME_GEN_FACTORS,
+    FrameGenJob,
+    FrameGenSettings,
+)
 
 GPU_CHOICES = ["Auto", "GPU 1", "GPU 2", "GPU 3", "GPU 4"]
 BLENDING_CHOICES = ["OFF", "Low", "Medium", "High"]
 IMAGE_EXTENSIONS = [".png", ".jpg", ".bmp", ".tiff"]
 VIDEO_EXTENSIONS = [".mp4", ".mkv", ".avi", ".mov"]
 VIDEO_CODECS = ["x264", "x265", "h264_nvenc", "hevc_nvenc", "h264_amf", "hevc_amf", "h264_qsv", "hevc_qsv"]
+FF_IMAGE_EXTENSIONS = [".jpg", ".png"]
+FF_VIDEO_EXTENSIONS = [".mp4", ".avi"]
+FF_VIDEO_CODECS = ["x264", "x265"]
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -47,7 +56,24 @@ def _build_parser() -> argparse.ArgumentParser:
     upscale.add_argument("--keep-frames", action="store_true", help="Keep extracted video frames after upscaling.")
     upscale.add_argument("--quiet", "-q", action="store_true", help="Suppress progress output.")
 
-    subparsers.add_parser("models", help="List the available AI models.")
+    fluidframes = subparsers.add_parser("fluidframes", help="Generate in-between video frames (or slowmotion) with RIFE.")
+    fluidframes.add_argument("inputs", nargs="+", metavar="INPUT", help="Input video file paths.")
+    fluidframes.add_argument("--model", "-m", choices=FF_AI_MODELS, default="RIFE", help="AI model to use (default: %(default)s).")
+    fluidframes.add_argument("--factor", "-f", type=int, choices=list(FF_FRAME_GEN_FACTORS), default=2, help="Frame generation factor (default: %(default)s).")
+    fluidframes.add_argument("--slowmotion", action="store_true", help="Produce a slowmotion video instead of a higher framerate one (drops audio).")
+    fluidframes.add_argument("--output", "-o", default=None, metavar="DIR", help="Output directory (default: alongside each input).")
+    fluidframes.add_argument("--gpu", choices=GPU_CHOICES, default="Auto", help="GPU to use (default: %(default)s).")
+    fluidframes.add_argument("--input-resize", type=float, default=50.0, metavar="PERCENT", help="Resize inputs to this percentage before interpolation (default: %(default)s).")
+    fluidframes.add_argument("--image-ext", choices=FF_IMAGE_EXTENSIONS, default=".jpg", help="Extracted frame image extension (default: %(default)s).")
+    fluidframes.add_argument("--video-ext", choices=FF_VIDEO_EXTENSIONS, default=".mp4", help="Output video extension (default: %(default)s).")
+    fluidframes.add_argument("--codec", choices=FF_VIDEO_CODECS, default="x264", help="Video codec for encoded outputs (default: %(default)s).")
+    fluidframes.add_argument("--video-quality", choices=VIDEO_QUALITIES, default="HIGH", help="Video encoder quality tier (default: %(default)s).")
+    fluidframes.add_argument("--keep-frames", action="store_true", help="Keep extracted and generated frames after encoding.")
+    fluidframes.add_argument("--cpus", type=int, default=4, metavar="N", help="Number of cpus for frame extraction and encoding (default: %(default)s).")
+    fluidframes.add_argument("--quiet", "-q", action="store_true", help="Suppress progress output.")
+
+    models = subparsers.add_parser("models", help="List the available AI models.")
+    models.add_argument("--fluidframes", action="store_true", help="List frame-generation models instead of upscale models.")
     return parser
 
 
@@ -56,6 +82,34 @@ def _format_progress(event: UpscaleProgress) -> str:
     if event.fraction is not None:
         line += f" ({event.fraction * 100.0:.0f}%)"
     return line
+
+
+def _stream_job_events(job: UpscaleJob | FrameGenJob, quiet: bool) -> int:
+    job.start()
+    previous_handler = signal.getsignal(signal.SIGINT)
+    signal.signal(signal.SIGINT, lambda _signum, _frame: job.cancel())
+
+    exit_code = 1
+    try:
+        for event in job.events():
+            if isinstance(event, UpscaleProgress):
+                if not quiet:
+                    sys.stderr.write(_format_progress(event) + "\n")
+                    sys.stderr.flush()
+            elif isinstance(event, UpscaleCompleted):
+                for output_path in event.output_paths:
+                    sys.stdout.write(output_path + "\n")
+                sys.stdout.flush()
+                exit_code = 0
+            elif isinstance(event, UpscaleStopped):
+                exit_code = 130
+            elif isinstance(event, UpscaleError):
+                sys.stderr.write(event.message + "\n")
+                sys.stderr.flush()
+                exit_code = 1
+    finally:
+        signal.signal(signal.SIGINT, previous_handler)
+    return exit_code
 
 
 def _run_upscale(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
@@ -80,36 +134,35 @@ def _run_upscale(parser: argparse.ArgumentParser, args: argparse.Namespace) -> i
     except ValueError as exc:
         parser.error(str(exc))
 
-    job = UpscaleJob(settings)
-    job.start()
-    previous_handler = signal.getsignal(signal.SIGINT)
-    signal.signal(signal.SIGINT, lambda _signum, _frame: job.cancel())
+    return _stream_job_events(UpscaleJob(settings), args.quiet)
 
-    exit_code = 1
+
+def _run_fluidframes(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
+    settings = FrameGenSettings(
+        input_paths=list(args.inputs),
+        output_path=args.output,
+        ai_model=args.model,
+        gpu=args.gpu,
+        frame_gen_factor=args.factor,
+        slowmotion=args.slowmotion,
+        keep_frames=args.keep_frames,
+        image_extension=args.image_ext,
+        video_extension=args.video_ext,
+        video_codec=args.codec,
+        video_quality=args.video_quality,
+        input_resize_factor=args.input_resize / 100.0,
+        cpu_number=args.cpus,
+    )
     try:
-        for event in job.events():
-            if isinstance(event, UpscaleProgress):
-                if not args.quiet:
-                    sys.stderr.write(_format_progress(event) + "\n")
-                    sys.stderr.flush()
-            elif isinstance(event, UpscaleCompleted):
-                for output_path in event.output_paths:
-                    sys.stdout.write(output_path + "\n")
-                sys.stdout.flush()
-                exit_code = 0
-            elif isinstance(event, UpscaleStopped):
-                exit_code = 130
-            elif isinstance(event, UpscaleError):
-                sys.stderr.write(event.message + "\n")
-                sys.stderr.flush()
-                exit_code = 1
-    finally:
-        signal.signal(signal.SIGINT, previous_handler)
-    return exit_code
+        settings.validate()
+    except ValueError as exc:
+        parser.error(str(exc))
+
+    return _stream_job_events(FrameGenJob(settings), args.quiet)
 
 
-def _run_models() -> int:
-    for model in AI_MODELS:
+def _run_models(fluidframes: bool) -> int:
+    for model in FF_AI_MODELS if fluidframes else AI_MODELS:
         sys.stdout.write(model + "\n")
     sys.stdout.flush()
     return 0
@@ -120,8 +173,10 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.command == "upscale":
         return _run_upscale(parser, args)
+    if args.command == "fluidframes":
+        return _run_fluidframes(parser, args)
     if args.command == "models":
-        return _run_models()
+        return _run_models(args.fluidframes)
     parser.print_help()
     return 2
 

@@ -15,6 +15,18 @@ dependencies = [
 ]
 version = "2026.3.1"
 
+# Invalidate uv's cached build of this directory whenever any source file
+# changes; the default keys (pyproject/setup.py mtime + version) miss
+# src-only changes, leaving the managed runtime on a stale wheel (see #53).
+[tool.uv]
+cache-keys = [
+    { file = "pyproject.toml" },
+    { file = "setup.py" },
+    { file = "MANIFEST.in" },
+    { file = "src/**/*.py" },
+    { file = "src/**/*.txt" },
+]
+
 [tool.setuptools.package-data]
 qualityscaler = ["requirements.runtime.lock.txt"]
 "qualityscaler._vendor.iso_env" = ["LICENSE", "assets/example.txt"]
