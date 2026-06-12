@@ -6,10 +6,14 @@ headless unit-test environment.
 
 from __future__ import annotations
 
+from qualityscaler.core import app_version
+
 
 app_name   = "QualityScaler"
 githubme   = "https://github.com/Djdefrag/QualityScaler/releases"
 telegramme = "https://linktr.ee/j3ngystudio"
+
+version = app_version()
 
 app_name_color          = "#F274EE"
 background_color        = "#000000"

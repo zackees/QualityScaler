@@ -8,9 +8,15 @@ Toolkit-free so it can be unit tested headlessly.
 from __future__ import annotations
 
 from json import dumps as json_dumps, load as json_load
-from os.path import exists as os_path_exists
+from os import sep as os_separator
+from os.path import exists as os_path_exists, expanduser as os_path_expanduser, join as os_path_join
 
+from qualityscaler.gui.assets import find_by_relative_path
+from qualityscaler.gui.constants import app_name, version
 from qualityscaler.gui.state import UIState
+
+DOCUMENT_PATH        = os_path_join(os_path_expanduser('~'), 'Documents')
+USER_PREFERENCE_PATH = find_by_relative_path(f"{DOCUMENT_PATH}{os_separator}{app_name}_{version}_userpreference.json")
 
 
 def load_preferences(preference_path: str) -> UIState:
