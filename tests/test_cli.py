@@ -421,3 +421,38 @@ def test_source_checkout_root_uses_cwd_when_module_in_site_packages(cli_module: 
 
     assert cli_module._source_checkout_root() == checkout.resolve()
     assert cli_module._self_requirement().startswith("quality-scaler @ file://")
+
+
+def test_self_requirement_repacks_installed_wheel_outside_checkout(
+    cli_module: Any,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Outside a checkout the runtime must install the re-packed local wheel,
+    never `quality-scaler==<version>` from the index (see #55)."""
+    wheel_path = tmp_path / "self-wheel" / "quality_scaler-9.9.9-012345678-py3-none-any.whl"
+    cache_dirs: list[Path] = []
+
+    def fake_build_installed_wheel(cache_dir: Path) -> Path:
+        cache_dirs.append(cache_dir)
+        return wheel_path
+
+    monkeypatch.setattr(cli_module, "_source_checkout_root", lambda: None)
+    monkeypatch.setattr(cli_module, "build_installed_wheel", fake_build_installed_wheel)
+    monkeypatch.setenv(cli_module.RUNTIME_ENV_VAR, str(tmp_path / "runtime"))
+
+    assert cli_module._self_requirement() == f"quality-scaler @ {wheel_path.as_uri()}"
+    assert cache_dirs == [tmp_path / "self-wheel"]
+
+
+def test_self_requirement_falls_back_to_version_pin_when_repack_fails(
+    cli_module: Any,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(cli_module, "_source_checkout_root", lambda: None)
+    monkeypatch.setattr(cli_module, "build_installed_wheel", lambda cache_dir: None)
+    monkeypatch.setattr(cli_module, "version", lambda name: "1.2.3")
+    monkeypatch.setenv(cli_module.RUNTIME_ENV_VAR, str(tmp_path / "runtime"))
+
+    assert cli_module._self_requirement() == "quality-scaler==1.2.3"
