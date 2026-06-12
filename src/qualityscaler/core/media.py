@@ -210,6 +210,8 @@ def encode_video(
     target_width: int,
     target_height: int,
     video_quality: str = "HIGH",
+    *,
+    include_audio: bool = True,
 ) -> None:
     ffmpeg_txt_file_path = f"{os.path.splitext(video_output_path)[0]}.txt"
     if os.path.exists(ffmpeg_txt_file_path):
@@ -224,6 +226,9 @@ def encode_video(
     effective_codec = {"x264": "libx264", "x265": "libx265"}.get(video_codec, video_codec)
     codecs_to_try = [effective_codec, "libx264"] if effective_codec != "libx264" else ["libx264"]
 
+    audio_input_args = ["-i", video_path] if include_audio else []
+    audio_map_args = ["-map", "1:a?", "-c:a", "copy"] if include_audio else []
+
     last_error: Exception | None = None
     for current_codec in codecs_to_try:
         encoding_command = [
@@ -234,11 +239,10 @@ def encode_video(
             "-safe", "0",
             "-r", str(video_fps),
             "-i", ffmpeg_txt_file_path,
-            "-i", video_path,
+            *audio_input_args,
             "-map", "0:v:0",
-            "-map", "1:a?",
+            *audio_map_args,
             "-c:v", str(current_codec),
-            "-c:a", "copy",
             "-g", str(video_fps),
             "-vf", f"scale={target_width}:{target_height},format=yuv420p",
             "-color_range", "tv",

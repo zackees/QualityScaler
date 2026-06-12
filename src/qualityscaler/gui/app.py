@@ -19,6 +19,7 @@ from customtkinter import (
     CTkCanvas,
     CTkFrame,
     CTkLabel,
+    CTkTabview,
     filedialog,
     set_appearance_mode,
     set_default_color_theme,
@@ -81,6 +82,9 @@ from qualityscaler.gui.info_texts import (
     VIDEO_QUALITY_INFO,
     OUTPUT_PATH_INFO,
 )
+from qualityscaler.gui.ff_controller import FrameGenController
+from qualityscaler.gui.ff_panel import FluidFramesPanel
+from qualityscaler.gui.ff_preferences import FF_USER_PREFERENCE_PATH, load_ff_preferences
 from qualityscaler.gui.preferences import USER_PREFERENCE_PATH, load_preferences, save_preferences
 from qualityscaler.gui.state import UIState, upscale_factor_for_model
 from qualityscaler.gui.widgets import (
@@ -121,17 +125,23 @@ class App():
     def __init__(
             self,
             window,
+            parent,
             state: UIState,
             controller: UpscaleController,
             fonts: AppFonts,
             icons: AppIcons,
+            extra_save = None,
+            extra_shutdown = None,
             ) -> None:
 
-        self.window     = window
-        self.state      = state
-        self.controller = controller
-        self.fonts      = fonts
-        self.icons      = icons
+        self.window         = window
+        self.parent         = parent
+        self.state          = state
+        self.controller     = controller
+        self.fonts          = fonts
+        self.icons          = icons
+        self.extra_save     = extra_save
+        self.extra_shutdown = extra_shutdown
 
         self.toplevel_window = None
         self.file_widget = None
@@ -154,7 +164,7 @@ class App():
         window.protocol("WM_DELETE_WINDOW", self.on_app_close)
 
         window.title(self._get_window_title())
-        window.geometry("1000x675")
+        window.geometry("1000x710")
         window.resizable(False, False)
         window.iconbitmap(find_by_relative_path("Assets" + os_separator + "logo.ico"))
 
@@ -325,7 +335,7 @@ class App():
             upscale_factor, input_resize_factor, output_resize_factor = self.get_values_for_file_widget()
 
             self.file_widget = FileWidget(
-                master               = self.window,
+                master               = self.parent,
                 selected_file_list   = supported_files_list,
                 fonts                = self.fonts,
                 clear_icon           = self.icons.clear_icon,
@@ -390,7 +400,7 @@ class App():
 
     def place_loadFile_section(self) -> None:
         background = CTkFrame(
-            master        = self.window,
+            master        = self.parent,
             fg_color      = background_color,
             corner_radius = 0,
             border_width  = 0
@@ -401,7 +411,7 @@ class App():
                    + "VIDEOS - mp4 webm mkv flv gif avi mov mpg qt 3gp ")
 
         input_file_text = CTkLabel(
-            master     = self.window,
+            master     = self.parent,
             text       = text_drop,
             fg_color   = background_color,
             bg_color   = background_color,
@@ -413,7 +423,7 @@ class App():
         )
 
         input_file_button = CTkButton(
-            master       = self.window,
+            master       = self.parent,
             command      = self.open_files_action,
             text         = "SELECT FILES",
             width        = 140,
@@ -432,13 +442,13 @@ class App():
 
     def place_app_name(self) -> None:
         background = CTkFrame(
-            master        = self.window,
+            master        = self.parent,
             fg_color      = background_color,
             corner_radius = 0,
             border_width  = 0
         )
         app_name_label = CTkLabel(
-            master     = self.window,
+            master     = self.parent,
             text       = app_name + " " + version,
             fg_color   = background_color,
             bg_color   = background_color,
@@ -453,7 +463,7 @@ class App():
 
         # App zoom menu
         label_app_zoom = CTkLabel(
-            master     = self.window,
+            master     = self.parent,
             text       = "App zoom",
             width      = 50,
             height     = 22,
@@ -464,7 +474,7 @@ class App():
             anchor     = "w"
         )
         zoom_option_menu = create_option_menu(
-            master        = self.window,
+            master        = self.parent,
             fonts         = self.fonts,
             command       = self.select_app_zoom,
             values        = zoom_option_list,
@@ -481,11 +491,11 @@ class App():
             open_browser(githubme, new=1)
 
         # Telegram button
-        telegram_button = create_link_button(self.window, self.fonts, command = opentelegram, icon = self.icons.logo_telegram)
+        telegram_button = create_link_button(self.parent, self.fonts, command = opentelegram, icon = self.icons.logo_telegram)
         telegram_button.place(relx = column_2+0.075, rely = row0, anchor = "center")
 
         # Github button
-        git_button = create_link_button(self.window, self.fonts, command = opengithub, icon = self.icons.logo_git)
+        git_button = create_link_button(self.parent, self.fonts, command = opengithub, icon = self.icons.logo_git)
         git_button.place(relx = column_2+0.11, rely = row0, anchor = "center")
 
     def place_AI_menu(self) -> None:
@@ -503,11 +513,11 @@ class App():
             )
 
         widget_row = row1
-        background = create_option_background(self.window)
+        background = create_option_background(self.parent)
         background.place(relx = 0.75, rely = widget_row, relwidth = 0.48, anchor = "center")
 
-        info_button = create_info_button(self.window, self.fonts, open_info_AI_model, "AI model")
-        option_menu = create_option_menu(self.window, self.fonts, self.select_AI_from_menu, AI_models_list, self.state.ai_model)
+        info_button = create_info_button(self.parent, self.fonts, open_info_AI_model, "AI model")
+        option_menu = create_option_menu(self.parent, self.fonts, self.select_AI_from_menu, AI_models_list, self.state.ai_model)
 
         info_button.place(relx = column_info1, rely = widget_row, anchor = "center")
         option_menu.place(relx = column_3_5,   rely = widget_row, anchor = "center")
@@ -528,11 +538,11 @@ class App():
 
         widget_row = row2
 
-        background = create_option_background(self.window)
+        background = create_option_background(self.parent)
         background.place(relx = 0.75, rely = widget_row, relwidth = 0.48, anchor = "center")
 
-        info_button = create_info_button(self.window, self.fonts, open_info_AI_blending, "AI blending")
-        option_menu = create_option_menu(self.window, self.fonts, self.select_blending_from_menu, blending_list, self.state.blending)
+        info_button = create_info_button(self.parent, self.fonts, open_info_AI_blending, "AI blending")
+        option_menu = create_option_menu(self.parent, self.fonts, self.select_blending_from_menu, blending_list, self.state.blending)
 
         info_button.place(relx = column_info1, rely = widget_row, anchor = "center")
         option_menu.place(relx = column_3_5,   rely = widget_row, anchor = "center")
@@ -552,11 +562,11 @@ class App():
             )
 
         widget_row = row3
-        background = create_option_background(self.window)
+        background = create_option_background(self.parent)
         background.place(relx = 0.75, rely = widget_row, relwidth = 0.48, anchor = "center")
 
-        info_button = create_info_button(self.window, self.fonts, open_info_AI_multithreading, "AI multithreading")
-        option_menu = create_option_menu(self.window, self.fonts, self.select_AI_multithreading_from_menu, AI_multithreading_list, self.state.ai_multithreading)
+        info_button = create_info_button(self.parent, self.fonts, open_info_AI_multithreading, "AI multithreading")
+        option_menu = create_option_menu(self.parent, self.fonts, self.select_AI_multithreading_from_menu, AI_multithreading_list, self.state.ai_multithreading)
 
         info_button.place(relx = column_info1, rely = widget_row, anchor = "center")
         option_menu.place(relx = column_3_5,   rely = widget_row, anchor = "center")
@@ -589,19 +599,19 @@ class App():
 
         widget_row = row4
 
-        background = create_option_background(self.window)
+        background = create_option_background(self.parent)
         background.place(relx = 0.75, rely = widget_row, relwidth = 0.48, anchor = "center")
 
         # Input scale %
-        info_button = create_info_button(self.window, self.fonts, open_info_input_resolution, "Input scale %")
-        option_menu = create_text_box(self.window, self.fonts, self.selected_input_resize_factor, width = little_textbox_width)
+        info_button = create_info_button(self.parent, self.fonts, open_info_input_resolution, "Input scale %")
+        option_menu = create_text_box(self.parent, self.fonts, self.selected_input_resize_factor, width = little_textbox_width)
 
         info_button.place(relx = column_info1, rely = widget_row, anchor = "center")
         option_menu.place(relx = column_1_5,   rely = widget_row, anchor = "center")
 
         # Output scale %
-        info_button = create_info_button(self.window, self.fonts, open_info_output_resolution, "Output scale %")
-        option_menu = create_text_box(self.window, self.fonts, self.selected_output_resize_factor, width = little_textbox_width)
+        info_button = create_info_button(self.parent, self.fonts, open_info_output_resolution, "Output scale %")
+        option_menu = create_text_box(self.parent, self.fonts, self.selected_output_resize_factor, width = little_textbox_width)
 
         info_button.place(relx = column_info2, rely = widget_row, anchor = "center")
         option_menu.place(relx = column_3,     rely = widget_row, anchor = "center")
@@ -634,19 +644,19 @@ class App():
 
         widget_row = row5
 
-        background  = create_option_background(self.window)
+        background  = create_option_background(self.parent)
         background.place(relx = 0.75, rely = widget_row, relwidth = 0.48, anchor = "center")
 
         # GPU
-        info_button = create_info_button(self.window, self.fonts, open_info_gpu, "GPU")
-        option_menu = create_option_menu(self.window, self.fonts, self.select_gpu_from_menu, gpus_list, self.state.gpu, width = little_menu_width)
+        info_button = create_info_button(self.parent, self.fonts, open_info_gpu, "GPU")
+        option_menu = create_option_menu(self.parent, self.fonts, self.select_gpu_from_menu, gpus_list, self.state.gpu, width = little_menu_width)
 
         info_button.place(relx = column_info1,        rely = widget_row, anchor = "center")
         option_menu.place(relx = column_1_4, rely = widget_row,  anchor = "center")
 
         # GPU VRAM
-        info_button = create_info_button(self.window, self.fonts, open_info_vram_limiter, "GPU VRAM (GB)")
-        option_menu = create_text_box(self.window, self.fonts, self.selected_VRAM_limiter, width = little_textbox_width)
+        info_button = create_info_button(self.parent, self.fonts, open_info_vram_limiter, "GPU VRAM (GB)")
+        option_menu = create_text_box(self.parent, self.fonts, self.selected_VRAM_limiter, width = little_textbox_width)
 
         info_button.place(relx = column_info2, rely = widget_row, anchor = "center")
         option_menu.place(relx = column_3,     rely = widget_row, anchor = "center")
@@ -679,18 +689,18 @@ class App():
 
         widget_row = row6
 
-        background = create_option_background(self.window)
+        background = create_option_background(self.parent)
         background.place(relx = 0.75, rely = widget_row, relwidth = 0.48, anchor = "center")
 
         # Image output
-        info_button = create_info_button(self.window, self.fonts, open_info_image_output, "Image output")
-        option_menu = create_option_menu(self.window, self.fonts, self.select_image_extension_from_menu, image_extension_list, self.state.image_extension, width = little_menu_width)
+        info_button = create_info_button(self.parent, self.fonts, open_info_image_output, "Image output")
+        option_menu = create_option_menu(self.parent, self.fonts, self.select_image_extension_from_menu, image_extension_list, self.state.image_extension, width = little_menu_width)
         info_button.place(relx = column_info1,        rely = widget_row, anchor = "center")
         option_menu.place(relx = column_1_4, rely = widget_row, anchor = "center")
 
         # Video output
-        info_button = create_info_button(self.window, self.fonts, open_info_video_extension, "Video output")
-        option_menu = create_option_menu(self.window, self.fonts, self.select_video_extension_from_menu, video_extension_list, self.state.video_extension, width = little_menu_width)
+        info_button = create_info_button(self.parent, self.fonts, open_info_video_extension, "Video output")
+        option_menu = create_option_menu(self.parent, self.fonts, self.select_video_extension_from_menu, video_extension_list, self.state.video_extension, width = little_menu_width)
         info_button.place(relx = column_info2,      rely = widget_row, anchor = "center")
         option_menu.place(relx = column_2_9, rely = widget_row, anchor = "center")
 
@@ -722,18 +732,18 @@ class App():
 
         widget_row = row7
 
-        background = create_option_background(self.window)
+        background = create_option_background(self.parent)
         background.place(relx = 0.75, rely = widget_row, relwidth = 0.48, anchor = "center")
 
         # Video codec
-        info_button = create_info_button(self.window, self.fonts, open_info_video_codec, "Video codec")
-        option_menu = create_option_menu(self.window, self.fonts, self.select_video_codec_from_menu, video_codec_list, self.state.video_codec, width = little_menu_width)
+        info_button = create_info_button(self.parent, self.fonts, open_info_video_codec, "Video codec")
+        option_menu = create_option_menu(self.parent, self.fonts, self.select_video_codec_from_menu, video_codec_list, self.state.video_codec, width = little_menu_width)
         info_button.place(relx = column_info1,        rely = widget_row, anchor = "center")
         option_menu.place(relx = column_1_4, rely = widget_row, anchor = "center")
 
         # Keep frames
-        info_button = create_info_button(self.window, self.fonts, open_info_keep_frames, "Keep frames")
-        option_menu = create_option_menu(self.window, self.fonts, self.select_save_frame_from_menu, keep_frames_list, self.state.keep_frames, width = little_menu_width)
+        info_button = create_info_button(self.parent, self.fonts, open_info_keep_frames, "Keep frames")
+        option_menu = create_option_menu(self.parent, self.fonts, self.select_save_frame_from_menu, keep_frames_list, self.state.keep_frames, width = little_menu_width)
         info_button.place(relx = column_info2,      rely = widget_row, anchor = "center")
         option_menu.place(relx = column_2_9, rely = widget_row, anchor = "center")
 
@@ -753,11 +763,11 @@ class App():
 
         widget_row = row8
 
-        background = create_option_background(self.window)
+        background = create_option_background(self.parent)
         background.place(relx = 0.75, rely = widget_row, relwidth = 0.48, anchor = "center")
 
-        info_button = create_info_button(self.window, self.fonts, open_info_video_quality, "Video quality")
-        option_menu = create_option_menu(self.window, self.fonts, self.select_video_quality_from_menu, video_quality_list, self.state.video_quality, width = little_menu_width)
+        info_button = create_info_button(self.parent, self.fonts, open_info_video_quality, "Video quality")
+        option_menu = create_option_menu(self.parent, self.fonts, self.select_video_quality_from_menu, video_quality_list, self.state.video_quality, width = little_menu_width)
         info_button.place(relx = column_info1,        rely = widget_row, anchor = "center")
         option_menu.place(relx = column_1_4, rely = widget_row, anchor = "center")
 
@@ -775,11 +785,11 @@ class App():
                 fonts         = self.fonts
             )
 
-        background    = create_option_background(self.window)
-        info_button   = create_info_button(self.window, self.fonts, open_info_output_path, "Output path")
-        option_menu   = create_text_box_output_path(self.window, self.fonts, self.selected_output_path)
+        background    = create_option_background(self.parent)
+        info_button   = create_info_button(self.parent, self.fonts, open_info_output_path, "Output path")
+        option_menu   = create_text_box_output_path(self.parent, self.fonts, self.selected_output_path)
         active_button = create_active_button(
-            master  = self.window,
+            master  = self.parent,
             fonts   = self.fonts,
             command = self.open_output_path_action,
             text    = "SELECT",
@@ -795,7 +805,7 @@ class App():
 
     def place_message_label(self) -> None:
         message_label = CTkLabel(
-            master        = self.window,
+            master        = self.parent,
             textvariable  = self.info_message,
             height        = 25,
             width         = 250,
@@ -809,7 +819,7 @@ class App():
         triangle_dimension = 14
         zero = 0
         triangle_pointer = CTkCanvas(
-            self.window,
+            self.parent,
             width   = triangle_dimension,
             height  = triangle_dimension,
             bg      = background_color,
@@ -826,7 +836,7 @@ class App():
 
     def place_stop_button(self) -> None:
         stop_button = create_active_button(
-            master       = self.window,
+            master       = self.parent,
             fonts        = self.fonts,
             command      = self.stop_button_command,
             text         = "STOP",
@@ -839,7 +849,7 @@ class App():
 
     def place_upscale_button(self) -> None:
         upscale_button = create_active_button(
-            master  = self.window,
+            master  = self.parent,
             fonts   = self.fonts,
             command = self.upscale_button_command,
             text    = "UPSCALE",
@@ -856,8 +866,10 @@ class App():
         save_preferences(state, USER_PREFERENCE_PATH)
 
     def on_app_close(self) -> None:
-        # 1. Save user choices in file
+        # 1. Save user choices in file (StringVars die with the root window)
         self.save_user_choices_in_json()
+        if self.extra_save is not None:
+            self.extra_save()
 
         # 2. Destroy app window
         self.window.grab_release()
@@ -865,6 +877,8 @@ class App():
 
         # 3. Stop upscale process and thread check_upscale_step
         self.controller.notify_close()
+        if self.extra_shutdown is not None:
+            self.extra_shutdown()
 
 
 
@@ -892,7 +906,33 @@ def main() -> None:
     fonts = load_fonts()
     icons = load_icons()
 
-    App(window, user_preferences, controller, fonts, icons)
+    tabview = CTkTabview(
+        master             = window,
+        fg_color           = background_color,
+        corner_radius      = 0,
+        border_width       = 0,
+        anchor             = "nw",
+    )
+    tabview.pack(fill = "both", expand = True)
+    tab_quality_scaler = tabview.add("Quality Scaler")
+    tab_fluid_frames   = tabview.add("Fluid Frames")
+    tab_quality_scaler.configure(fg_color = background_color)
+    tab_fluid_frames.configure(fg_color = background_color)
+
+    ff_controller = FrameGenController()
+    ff_preferences = load_ff_preferences(FF_USER_PREFERENCE_PATH)
+    ff_panel = FluidFramesPanel(tab_fluid_frames, ff_preferences, ff_controller, fonts, icons)
+
+    App(
+        window,
+        tab_quality_scaler,
+        user_preferences,
+        controller,
+        fonts,
+        icons,
+        extra_save     = ff_panel.save_user_choices_in_json,
+        extra_shutdown = ff_controller.notify_close,
+    )
     window.update()
     window.mainloop()
 
