@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 import subprocess
 import threading
-import time
 from typing import Callable
 
 import cv2
@@ -12,6 +11,7 @@ from natsort import natsorted
 
 from .encoding import video_quality_args
 from .models import _package_dir
+from .proc import stream_subprocess
 
 EXIFTOOL_ASSET_NAMES = ("exiftool.exe", "exiftool_12.70.exe", "exiftool_12.68.exe")
 
@@ -138,14 +138,6 @@ def blend_images_and_save(
         image_write(target_path, upscaled_image, file_extension)
 
 
-def _startupinfo():
-    if os.name == "nt":
-        startupinfo = subprocess.STARTUPINFO()
-        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-        return startupinfo
-    return None
-
-
 def extract_video_frames(
     video_path: str,
     target_directory: str,
@@ -173,26 +165,17 @@ def extract_video_frames(
         output_pattern,
     ]
 
-    ffmpeg_process = subprocess.Popen(extraction_command, startupinfo=_startupinfo())
-    last_report = time.monotonic()
-    try:
-        while ffmpeg_process.poll() is None:
-            if cancel.is_set():
-                ffmpeg_process.terminate()
-                ffmpeg_process.wait()
-                return []
-            now = time.monotonic()
-            if on_progress is not None and total_frames > 0 and now - last_report >= 1.0:
-                last_report = now
-                extracted = len([f for f in os.listdir(target_directory) if f.startswith("frame_")])
-                on_progress(min(extracted / total_frames, 1.0))
-            time.sleep(0.1)
-    except Exception:
-        ffmpeg_process.kill()
-        raise
+    def report_extraction_progress() -> None:
+        if on_progress is not None and total_frames > 0:
+            extracted = len([f for f in os.listdir(target_directory) if f.startswith("frame_")])
+            on_progress(min(extracted / total_frames, 1.0))
 
-    if ffmpeg_process.returncode != 0:
-        raise RuntimeError(f"ffmpeg frame extraction failed with exit code {ffmpeg_process.returncode}")
+    returncode = stream_subprocess(extraction_command, cancel=cancel, tick=report_extraction_progress)
+
+    if cancel.is_set():
+        return []
+    if returncode != 0:
+        raise RuntimeError(f"ffmpeg frame extraction failed with exit code {returncode}")
 
     return [
         os.path.join(target_directory, f)
@@ -251,7 +234,9 @@ def encode_video(
             video_output_path,
         ]
         try:
-            subprocess.run(encoding_command, check=True, startupinfo=_startupinfo())
+            returncode = stream_subprocess(encoding_command)
+            if returncode != 0:
+                raise RuntimeError(f"ffmpeg exited with code {returncode} (codec {current_codec})")
             if os.path.exists(ffmpeg_txt_file_path):
                 os.remove(ffmpeg_txt_file_path)
             return

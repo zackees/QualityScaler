@@ -61,6 +61,8 @@ from qualityscaler.gui.constants import (
     column_1_4, column_1_5, column_2_9, column_3_5,
     little_textbox_width, little_menu_width,
 )
+from qualityscaler.gui.console_log import ConsoleSink, install_console_redirectors
+from qualityscaler.gui.console_widget import ConsoleWidget
 from qualityscaler.gui.controller import (
     UpscaleController,
     build_settings,
@@ -116,6 +118,10 @@ else:
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 
+WINDOW_BASE_HEIGHT = 710
+CONSOLE_HEIGHT = 180
+
+
 def apply_app_zoom(zoom: float) -> None:
     set_window_scaling(zoom)
     set_widget_scaling(zoom)
@@ -133,16 +139,18 @@ class App():
             icons: AppIcons,
             extra_save = None,
             extra_shutdown = None,
+            on_toggle_console = None,
             ) -> None:
 
-        self.window         = window
-        self.parent         = parent
-        self.state          = state
-        self.controller     = controller
-        self.fonts          = fonts
-        self.icons          = icons
-        self.extra_save     = extra_save
-        self.extra_shutdown = extra_shutdown
+        self.window            = window
+        self.parent            = parent
+        self.state             = state
+        self.controller        = controller
+        self.fonts             = fonts
+        self.icons             = icons
+        self.extra_save        = extra_save
+        self.extra_shutdown    = extra_shutdown
+        self.on_toggle_console = on_toggle_console
 
         self.toplevel_window = None
         self.file_widget = None
@@ -500,6 +508,23 @@ class App():
         # Github button
         git_button = create_link_button(self.parent, self.fonts, command = opengithub, icon = self.icons.logo_git)
         git_button.place(relx = column_2+0.11, rely = row0, anchor = "center")
+
+        # Console toggle button
+        if self.on_toggle_console is not None:
+            console_button = CTkButton(
+                master        = self.parent,
+                command       = self.on_toggle_console,
+                text          = ">_",
+                width         = 30,
+                height        = 30,
+                font          = self.fonts.bold11,
+                border_width  = 1,
+                corner_radius = 1,
+                fg_color      = "transparent",
+                text_color    = "#E0E0E0",
+                border_color  = "#404040",
+            )
+            console_button.place(relx = column_2+0.145, rely = row0, anchor = "center")
 
     def place_AI_menu(self) -> None:
 
@@ -903,7 +928,10 @@ def main() -> None:
     set_default_color_theme("dark-blue")
     apply_app_zoom(float(user_preferences.app_zoom.replace("%", "")) / 100)
 
-    controller = UpscaleController()
+    console_sink = ConsoleSink()
+    install_console_redirectors(console_sink)
+
+    controller = UpscaleController(log_sink=console_sink)
 
     window = CTk()
     fonts = load_fonts()
@@ -916,13 +944,47 @@ def main() -> None:
         border_width       = 0,
         anchor             = "nw",
     )
-    tabview.pack(fill = "both", expand = True)
+    tabview.pack(side = "top", fill = "both", expand = True)
     tab_quality_scaler = tabview.add("Quality Scaler")
     tab_fluid_frames   = tabview.add("Fluid Frames")
     tab_quality_scaler.configure(fg_color = background_color)
     tab_fluid_frames.configure(fg_color = background_color)
 
-    ff_controller = FrameGenController()
+    console_visible = False
+
+    def hide_console() -> None:
+        nonlocal console_visible
+        if not console_visible:
+            return
+        console_visible = False
+        console_widget.pack_forget()
+        window.geometry(f"1000x{WINDOW_BASE_HEIGHT}")
+
+    def show_console() -> None:
+        nonlocal console_visible
+        if console_visible:
+            return
+        console_visible = True
+        window.geometry(f"1000x{WINDOW_BASE_HEIGHT + CONSOLE_HEIGHT}")
+        console_widget.pack(side = "bottom", fill = "x")
+
+    def toggle_console() -> None:
+        if console_visible:
+            hide_console()
+        else:
+            show_console()
+
+    console_widget = ConsoleWidget(window, fonts, on_close=hide_console, height=CONSOLE_HEIGHT)
+
+    def drain_console() -> None:
+        lines = console_sink.drain(max_items=200)
+        if lines:
+            console_widget.append_batch(lines)
+        window.after(50, drain_console)
+
+    window.after(50, drain_console)
+
+    ff_controller = FrameGenController(log_sink=console_sink)
     ff_preferences = load_ff_preferences(FF_USER_PREFERENCE_PATH)
     ff_panel = FluidFramesPanel(tab_fluid_frames, ff_preferences, ff_controller, fonts, icons)
 
@@ -933,8 +995,9 @@ def main() -> None:
         controller,
         fonts,
         icons,
-        extra_save     = ff_panel.save_user_choices_in_json,
-        extra_shutdown = ff_controller.notify_close,
+        extra_save        = ff_panel.save_user_choices_in_json,
+        extra_shutdown    = ff_controller.notify_close,
+        on_toggle_console = toggle_console,
     )
     window.update()
     window.mainloop()

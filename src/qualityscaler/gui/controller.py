@@ -111,11 +111,20 @@ def _print_start_banner(settings: UpscaleSettings) -> None:
 class UpscaleController:
     """Owns the worker process, its stop event and the single-slot event queue."""
 
-    def __init__(self) -> None:
+    def __init__(self, log_sink=None) -> None:
         self._manager = multiprocessing_Manager()
         self.process_status_q = self._manager.Queue(maxsize=1)
         self.event_stop_upscale_process = self._manager.Event()
         self.process_upscale_orchestrator: Optional[multiprocessing_Process] = None
+
+        self.log_q = None
+        self._log_bridge = None
+        if log_sink is not None:
+            from qualityscaler.gui.console_log import MpLogBridge
+
+            self.log_q = self._manager.Queue()
+            self._log_bridge = MpLogBridge(self.log_q, log_sink)
+            self._log_bridge.start()
 
     def write_process_status(self, status: object) -> None:
         while not self.process_status_q.empty():
@@ -131,7 +140,7 @@ class UpscaleController:
 
         self.process_upscale_orchestrator = multiprocessing_Process(
             target=_pipeline_process_main,
-            args=(self.process_status_q, self.event_stop_upscale_process, settings),
+            args=(self.process_status_q, self.event_stop_upscale_process, settings, self.log_q),
         )
         self.process_upscale_orchestrator.start()
 
@@ -175,3 +184,5 @@ class UpscaleController:
     def notify_close(self) -> None:
         self.write_process_status(f"{CLOSE_APP_STATUS}")
         self.stop_process()
+        if self._log_bridge is not None:
+            self._log_bridge.stop()
