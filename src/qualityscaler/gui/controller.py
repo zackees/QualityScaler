@@ -27,6 +27,10 @@ from qualityscaler.gui.state import (
 )
 from qualityscaler.gui.worker import CLOSE_APP_STATUS, _pipeline_process_main
 
+# How long to wait for the orchestrator to exit gracefully after the stop
+# event is set, before falling back to kill().
+_STOP_JOIN_TIMEOUT_SECONDS = 5.0
+
 
 def format_progress_event(event: UpscaleProgress) -> str:
     message = event.message
@@ -167,12 +171,19 @@ class UpscaleController:
         print(f"[{app_name}] stop_upscale_process - setting upscale process stop event")
         self.event_stop_upscale_process.set()
 
-        sleep(1)
-
         process = self.process_upscale_orchestrator
         if process is not None:
             print(f"[{app_name}] stop_upscale_process - waiting for upscale orchestrator to terminate")
-            process.kill()
+            process.join(timeout=_STOP_JOIN_TIMEOUT_SECONDS)
+            if process.is_alive():
+                try:
+                    process.kill()
+                except (PermissionError, OSError):
+                    # The orchestrator exited between is_alive() and
+                    # TerminateProcess; on Windows this raises
+                    # PermissionError (WinError 5). Nothing to do.
+                    pass
+                process.join()
             print(f"[{app_name}] stop_upscale_process - upscale orchestrator terminated")
 
         self.event_stop_upscale_process.clear()

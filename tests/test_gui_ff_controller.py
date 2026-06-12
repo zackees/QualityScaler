@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from typing import Optional, cast
+
 from qualityscaler.gui.constants import OUTPUT_PATH_CODED
-from qualityscaler.gui.ff_controller import build_settings, validate
+from qualityscaler.gui.ff_controller import FrameGenController, build_settings, validate
 from qualityscaler.gui.ff_state import FFUIState
 
 
@@ -84,3 +86,103 @@ def test_build_settings_explicit_output_path() -> None:
     assert settings.slowmotion is False
     assert settings.keep_frames is True
     settings.validate()
+
+
+class _FakeStopEvent:
+    def __init__(self) -> None:
+        self.set_called = False
+        self.clear_called = False
+
+    def set(self) -> None:
+        self.set_called = True
+
+    def clear(self) -> None:
+        self.clear_called = True
+
+
+class _FakeProcess:
+    """Stand-in for a multiprocessing.Process orchestrator."""
+
+    def __init__(
+        self, alive_after_join: bool, kill_exception: Optional[BaseException] = None
+    ) -> None:
+        self._alive_after_join = alive_after_join
+        self._kill_exception = kill_exception
+        self.join_timeouts: list[Optional[float]] = []
+        self.kill_calls = 0
+
+    def join(self, timeout: Optional[float] = None) -> None:
+        self.join_timeouts.append(timeout)
+
+    def is_alive(self) -> bool:
+        return self._alive_after_join
+
+    def kill(self) -> None:
+        self.kill_calls += 1
+        if self._kill_exception is not None:
+            raise self._kill_exception
+
+
+def _controller_with(
+    process: _FakeProcess,
+) -> tuple[FrameGenController, _FakeStopEvent]:
+    controller = FrameGenController.__new__(FrameGenController)
+    stop_event = _FakeStopEvent()
+    controller.event_stop_process = cast("object", stop_event)  # type: ignore[assignment]
+    controller.process_orchestrator = cast("object", process)  # type: ignore[assignment]
+    return controller, stop_event
+
+
+def test_stop_process_skips_kill_when_orchestrator_already_exited() -> None:
+    # Regression test for issue #57: after a successful run the orchestrator
+    # has already exited; kill() must not be called at all.
+    process = _FakeProcess(
+        alive_after_join=False,
+        kill_exception=PermissionError("[WinError 5] Access is denied"),
+    )
+    controller, stop_event = _controller_with(process)
+
+    controller.stop_process()
+
+    assert process.kill_calls == 0
+    assert len(process.join_timeouts) == 1
+    assert process.join_timeouts[0] is not None  # bounded join, not unbounded
+    assert stop_event.set_called is True
+    assert stop_event.clear_called is True
+
+
+def test_stop_process_absorbs_permission_error_from_kill_race() -> None:
+    # The orchestrator exits between is_alive() and TerminateProcess; on
+    # Windows kill() raises PermissionError, which must be swallowed.
+    process = _FakeProcess(
+        alive_after_join=True,
+        kill_exception=PermissionError("[WinError 5] Access is denied"),
+    )
+    controller, stop_event = _controller_with(process)
+
+    controller.stop_process()
+
+    assert process.kill_calls == 1
+    assert len(process.join_timeouts) == 2  # graceful join, then reaping join
+    assert stop_event.clear_called is True
+
+
+def test_stop_process_kills_live_orchestrator() -> None:
+    process = _FakeProcess(alive_after_join=True)
+    controller, _ = _controller_with(process)
+
+    controller.stop_process()
+
+    assert process.kill_calls == 1
+
+
+def test_stop_process_handles_missing_orchestrator() -> None:
+    controller = FrameGenController.__new__(FrameGenController)
+    stop_event = _FakeStopEvent()
+    controller.event_stop_process = cast("object", stop_event)  # type: ignore[assignment]
+    controller.process_orchestrator = None
+
+    controller.stop_process()
+
+    assert stop_event.set_called is True
+    assert stop_event.clear_called is True

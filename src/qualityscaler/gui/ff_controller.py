@@ -29,6 +29,10 @@ from qualityscaler.gui.state import keep_frames_from_label
 
 _SUPPORTED_VIDEO_EXTENSIONS_LOWER = {extension.lower() for extension in supported_video_extensions}
 
+# How long to wait for the orchestrator to exit gracefully after the stop
+# event is set, before falling back to kill().
+_STOP_JOIN_TIMEOUT_SECONDS = 5.0
+
 
 def validate(state: FFUIState) -> Optional[str]:
     """Return an error message for the info bar, or None if input is valid."""
@@ -154,12 +158,19 @@ class FrameGenController:
         print(f"[{app_name}] stop_frame_generation_process - setting stop event")
         self.event_stop_process.set()
 
-        sleep(1)
-
         process = self.process_orchestrator
         if process is not None:
             print(f"[{app_name}] stop_frame_generation_process - waiting for orchestrator to terminate")
-            process.kill()
+            process.join(timeout=_STOP_JOIN_TIMEOUT_SECONDS)
+            if process.is_alive():
+                try:
+                    process.kill()
+                except (PermissionError, OSError):
+                    # The orchestrator exited between is_alive() and
+                    # TerminateProcess; on Windows this raises
+                    # PermissionError (WinError 5). Nothing to do.
+                    pass
+                process.join()
             print(f"[{app_name}] stop_frame_generation_process - orchestrator terminated")
 
         self.event_stop_process.clear()
