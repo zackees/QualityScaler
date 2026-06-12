@@ -62,7 +62,9 @@ from subprocess import (
 
 # Third-party library imports
 from download import download
+from hashlib import sha256 as hashlib_sha256
 from natsort import natsorted
+from requests import get as requests_get
 from zstandard import ZstdDecompressor
 from psutil import (
     Process             as psutil_Process,
@@ -293,11 +295,17 @@ supported_video_extensions = [
 
 # AI -------------------
 
-def get_model_url(
-        model_name: str
-        ) -> str:
+MODEL_MANIFEST_BASE_URL = "https://raw.githubusercontent.com/zackees/ai-image-video-models/main/assets/qualityscaler/onnx"
 
-    return f"https://zackees.github.io/ai-image-video-models/{model_name}"
+def get_model_manifest_entry(
+        model_name: str
+        ) -> dict:
+
+    model_key = model_name.removesuffix("_fp16.onnx")
+    response = requests_get(f"{MODEL_MANIFEST_BASE_URL}/{model_key}/manifest.json", timeout = 60)
+    response.raise_for_status()
+    manifest = response.json()
+    return manifest[manifest["latest"]]
 
 
 def ensure_AI_model_file(
@@ -309,8 +317,18 @@ def ensure_AI_model_file(
 
     model_name = os_path_basename(model_path)
     os_makedirs(os_path_dirname(model_path), exist_ok = True)
+    entry = get_model_manifest_entry(model_name)
     zst_path = f"{model_path}.zst"
-    download(get_model_url(f"{model_name}.zst"), zst_path, replace = False, timeout=60 * 5)
+    download(entry["href"], zst_path, replace = False, timeout=60 * 5)
+
+    file_hash = hashlib_sha256()
+    with open(zst_path, "rb") as compressed:
+        for chunk in iter(lambda: compressed.read(1 << 20), b""):
+            file_hash.update(chunk)
+    if file_hash.hexdigest() != entry["sha256"]:
+        os_remove(zst_path)
+        raise ValueError(f"sha256 mismatch for {model_name}, download corrupted")
+
     temp_path = f"{model_path}.tmp"
     with open(zst_path, "rb") as compressed, open(temp_path, "wb") as decompressed:
         ZstdDecompressor().copy_stream(compressed, decompressed)
