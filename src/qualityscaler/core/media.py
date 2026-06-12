@@ -10,6 +10,7 @@ import cv2
 import numpy
 from natsort import natsorted
 
+from .encoding import video_quality_args
 from .models import _package_dir
 
 EXIFTOOL_ASSET_NAMES = ("exiftool.exe", "exiftool_12.70.exe", "exiftool_12.68.exe")
@@ -208,6 +209,7 @@ def encode_video(
     video_codec: str,
     target_width: int,
     target_height: int,
+    video_quality: str = "HIGH",
 ) -> None:
     ffmpeg_txt_file_path = f"{os.path.splitext(video_output_path)[0]}.txt"
     if os.path.exists(ffmpeg_txt_file_path):
@@ -241,7 +243,7 @@ def encode_video(
             "-vf", f"scale={target_width}:{target_height},format=yuv420p",
             "-color_range", "tv",
             "-movflags", "+faststart",
-            "-b:v", "50000k",
+            *video_quality_args(current_codec, video_quality),
             video_output_path,
         ]
         try:

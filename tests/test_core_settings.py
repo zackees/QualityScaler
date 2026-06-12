@@ -2,7 +2,14 @@ from __future__ import annotations
 
 import pytest
 
-from qualityscaler.core import AI_MODELS, BLENDING_FACTORS, VRAM_MODEL_USAGE, UpscaleSettings, tiles_resolution_for
+from qualityscaler.core import (
+    AI_MODELS,
+    BLENDING_FACTORS,
+    VIDEO_QUALITIES,
+    VRAM_MODEL_USAGE,
+    UpscaleSettings,
+    tiles_resolution_for,
+)
 
 
 def test_ai_models_list() -> None:
@@ -56,6 +63,11 @@ def test_settings_defaults() -> None:
     assert settings.image_extension == ".png"
     assert settings.video_extension == ".mp4"
     assert settings.video_codec == "x264"
+    assert settings.video_quality == "HIGH"
+
+
+def test_video_qualities_list() -> None:
+    assert VIDEO_QUALITIES == ["LOW", "MEDIUM", "HIGH"]
 
 
 def test_settings_tiles_resolution_property() -> None:
@@ -78,6 +90,8 @@ def test_validate_accepts_good_settings() -> None:
         {"ai_model": "NotAModel"},
         {"ai_model": "----"},
         {"blending": "Maximum"},
+        {"video_quality": "ULTRA"},
+        {"video_quality": "high"},
         {"input_resize_factor": 0},
         {"input_resize_factor": -0.5},
         {"output_resize_factor": 0},

@@ -33,6 +33,8 @@ BLENDING_FACTORS: dict[str, float] = {
     "High": 0.7,
 }
 
+VIDEO_QUALITIES: list[str] = ["LOW", "MEDIUM", "HIGH"]
+
 
 def tiles_resolution_for(model: str, vram_gb: float) -> int:
     return int(VRAM_MODEL_USAGE[model] * vram_gb * 100)
@@ -53,6 +55,7 @@ class UpscaleSettings:
     image_extension: str = ".png"
     video_extension: str = ".mp4"
     video_codec: str = "x264"
+    video_quality: str = "HIGH"
 
     @property
     def tiles_resolution(self) -> int:
@@ -67,6 +70,8 @@ class UpscaleSettings:
             raise ValueError(f"Unknown AI model: {self.ai_model!r} (expected one of {AI_MODELS})")
         if self.blending not in BLENDING_FACTORS:
             raise ValueError(f"Unknown blending level: {self.blending!r} (expected one of {list(BLENDING_FACTORS)})")
+        if self.video_quality not in VIDEO_QUALITIES:
+            raise ValueError(f"Unknown video quality: {self.video_quality!r} (expected one of {VIDEO_QUALITIES})")
         if self.input_resize_factor <= 0:
             raise ValueError(f"input_resize_factor must be > 0, got {self.input_resize_factor}")
         if self.output_resize_factor <= 0:

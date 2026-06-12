@@ -257,6 +257,7 @@ def upscale_video_file(
         upscaled_frame_paths=upscaled_frame_paths,
         video_fps=video_fps,
         video_codec=settings.video_codec,
+        video_quality=settings.video_quality,
         target_width=target_width,
         target_height=target_height,
     )
