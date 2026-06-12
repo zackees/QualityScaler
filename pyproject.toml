@@ -25,6 +25,9 @@ cache-keys = [
     { file = "MANIFEST.in" },
     { file = "src/**/*.py" },
     { file = "src/**/*.txt" },
+    { file = "src/**/*.html" },
+    { file = "src/**/*.js" },
+    { file = "src/**/*.css" },
 ]
 
 [tool.setuptools.package-data]

@@ -189,5 +189,8 @@ export function createMockApi(): QsApi {
     async open_external(url: string): Promise<void> {
       if (typeof window !== "undefined") window.open(url, "_blank");
     },
+    async report_renderer_error(message: string): Promise<void> {
+      console.error("[renderer-error]", message);
+    },
   };
 }

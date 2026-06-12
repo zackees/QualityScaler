@@ -12,6 +12,7 @@ running Vite dev server.
 from __future__ import annotations
 
 import argparse
+import mimetypes
 import sys
 from importlib.resources import files as importlib_resources_files
 from multiprocessing import freeze_support as multiprocessing_freeze_support
@@ -37,7 +38,24 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         help="Load the frontend from a Vite dev server (e.g. http://localhost:5173) "
         "instead of the bundled assets.",
     )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable pywebview debug mode (devtools) even with the bundled assets.",
+    )
     return parser.parse_args(argv)
+
+
+def _register_mime_types() -> None:
+    """Force correct MIME types for the bundled frontend (see issue #70).
+
+    On Windows, ``mimetypes`` reads the registry, where ``.js`` is often
+    mapped to ``text/plain``; WebView2 then rejects the ES module bundle and
+    the window stays blank. ``add_type`` overrides any registry value.
+    """
+    mimetypes.add_type("text/javascript", ".js")
+    mimetypes.add_type("text/javascript", ".mjs")
+    mimetypes.add_type("text/css", ".css")
 
 
 def _bundled_index_path() -> str | None:
@@ -133,9 +151,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     api._set_window(window)
 
+    _register_mime_types()
+
     exit_code = 0
     try:
-        webview.start(http_server=True, debug=args.dev_url is not None)
+        webview.start(http_server=True, debug=args.debug or args.dev_url is not None)
     except Exception as exc:  # WebView2 runtime missing, GTK/Qt deps missing, ...
         _print_webview_start_failure(exc)
         exit_code = 1

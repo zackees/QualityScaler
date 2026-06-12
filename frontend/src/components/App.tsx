@@ -48,6 +48,7 @@ export function App() {
   const [status, dispatchStatus] = useReducer(statusReducer, INITIAL_STATUS);
   const [modal, setModal] = useState<{ title: string; text: string } | null>(null);
   const [consoleOpen, setConsoleOpen] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const loadedRef = useRef(false);
   const sink = useMemo(() => new LogSink(), []);
 
@@ -90,7 +91,12 @@ export function App() {
           }
         });
       }
-    })();
+    })().catch((error: unknown) => {
+      if (cancelled) return;
+      const text = error instanceof Error ? error.message : String(error);
+      setLoadError(text);
+      void window.pywebview?.api?.report_renderer_error?.(`bootstrap failed: ${text}`);
+    });
     return () => {
       cancelled = true;
       ws?.close();
@@ -193,6 +199,14 @@ export function App() {
     }),
     [menus, settings],
   );
+
+  if (loadError !== null) {
+    return (
+      <div className="file-list-empty" role="alert" style={{ color: "#ff6b6b", padding: "2rem" }}>
+        Failed to load QualityScaler: {loadError}
+      </div>
+    );
+  }
 
   if (api === null) {
     return <div className="file-list-empty">Loading QualityScaler...</div>;
