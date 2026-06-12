@@ -268,9 +268,9 @@ def run_cli(argv: list[str]) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Dispatch to the GUI (``ui`` subcommand) or proxy to the runtime CLI."""
+    """Launch the GUI by default; subcommands proxy to the runtime CLI."""
     argv = list(sys.argv[1:]) if argv is None else list(argv)
-    if argv and argv[0] == "ui":
+    if not argv or argv[0] == "ui":
         return run_qualityscaler(timeout_seconds=_timeout_seconds())
     return run_cli(argv)
 

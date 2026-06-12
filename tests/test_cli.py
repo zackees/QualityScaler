@@ -78,15 +78,20 @@ def test_main_ui_passes_launch_timeout_to_runtime(
     assert calls == [2.5]
 
 
-def test_main_without_args_proxies_to_runtime_cli(
+def test_main_without_args_launches_gui(
     cli_module: Any,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    calls: list[list[str]] = []
-    monkeypatch.setattr(cli_module, "run_cli", lambda argv: calls.append(argv) or 7)
+    calls: list[float | None] = []
+
+    def fake_run_qualityscaler(timeout_seconds: float | None = None) -> int:
+        calls.append(timeout_seconds)
+        return 7
+
+    monkeypatch.setattr(cli_module, "run_qualityscaler", fake_run_qualityscaler)
 
     assert cli_module.main([]) == 7
-    assert calls == [[]]
+    assert calls == [None]
 
 
 def test_main_proxies_cli_args_to_runtime_cli(
