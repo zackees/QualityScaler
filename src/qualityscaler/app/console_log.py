@@ -1,8 +1,9 @@
 """Log transport for the in-app console, kept free of any GUI toolkit imports.
 
 Producers (stdout/stderr redirectors, logging handlers, worker-process
-bridges) only ever enqueue onto a :class:`ConsoleSink`; the Tk main loop is
-the single consumer and drains the sink on a timer.
+bridges) only ever enqueue onto a :class:`ConsoleSink`; the webview WebSocket
+send loop is the single consumer and drains the sink, forwarding raw text
+(ANSI escapes and ``\\r`` progress included) to the xterm.js console.
 """
 
 from __future__ import annotations
@@ -10,12 +11,9 @@ from __future__ import annotations
 import io
 import logging
 import queue
-import re
 import sys
 import threading
 from dataclasses import dataclass
-
-_ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 
 STREAM_STDOUT = "stdout"
 STREAM_STDERR = "stderr"
@@ -32,10 +30,6 @@ class ConsoleLine:
 
     def as_tuple(self) -> tuple[str, str, bool]:
         return (self.text, self.stream, self.replace_last)
-
-
-def strip_ansi(text: str) -> str:
-    return _ANSI_ESCAPE_RE.sub("", text)
 
 
 def split_terminal_text(text: str) -> tuple[list[tuple[str, bool]], str]:
@@ -70,13 +64,10 @@ def split_terminal_text(text: str) -> tuple[list[tuple[str, bool]], str]:
 class ConsoleSink:
     """Thread-safe, unbounded line queue between producers and the GUI."""
 
-    def __init__(self, strip_ansi: bool = True) -> None:
+    def __init__(self) -> None:
         self._queue: queue.Queue[ConsoleLine] = queue.Queue()
-        self._strip_ansi = strip_ansi
 
     def put(self, text: str, stream: str = STREAM_STDOUT, replace_last: bool = False) -> None:
-        if self._strip_ansi:
-            text = strip_ansi(text)
         self._queue.put(ConsoleLine(text, stream, replace_last))
 
     def drain(self, max_items: int = 200) -> list[ConsoleLine]:
@@ -237,26 +228,3 @@ def install_console_redirectors(sink: ConsoleSink) -> None:
     handler = ConsoleLogHandler(sink)
     handler.setFormatter(logging.Formatter("%(levelname)s %(name)s: %(message)s"))
     logging.getLogger().addHandler(handler)
-
-
-class LineRing:
-    """Tracks console line count against a cap; reports lines to evict."""
-
-    def __init__(self, max_lines: int = 5000) -> None:
-        if max_lines <= 0:
-            raise ValueError("max_lines must be positive")
-        self.max_lines = max_lines
-        self.count = 0
-
-    def add(self, added: int = 1) -> int:
-        """Record *added* lines; return how many oldest lines to delete."""
-        self.count += added
-        overflow = max(0, self.count - self.max_lines)
-        self.count -= overflow
-        return overflow
-
-    def replace_last(self) -> None:
-        """A replace-last line keeps the count unchanged."""
-
-    def clear(self) -> None:
-        self.count = 0

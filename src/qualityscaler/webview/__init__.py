@@ -1,4 +1,4 @@
-"""System-webview host for QualityScaler (opt-in; the CTk GUI stays default).
+"""System-webview host for QualityScaler — the application's GUI.
 
 Submodules:
 

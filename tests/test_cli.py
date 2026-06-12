@@ -68,7 +68,7 @@ def test_main_ui_passes_launch_timeout_to_runtime(
     calls = []
     monkeypatch.setenv(cli_module.RUNTIME_TIMEOUT_ENV_VAR, "2.5")
 
-    def fake_run_qualityscaler(timeout_seconds: float | None = None, webview: bool = False) -> int:
+    def fake_run_qualityscaler(timeout_seconds: float | None = None) -> int:
         calls.append(timeout_seconds)
         return 17
 
@@ -76,23 +76,6 @@ def test_main_ui_passes_launch_timeout_to_runtime(
 
     assert cli_module.main(["ui"]) == 17
     assert calls == [2.5]
-
-
-def test_main_ui_webview_flag_selects_webview_host(
-    cli_module: Any,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    calls: list[bool] = []
-
-    def fake_run_qualityscaler(timeout_seconds: float | None = None, webview: bool = False) -> int:
-        calls.append(webview)
-        return 0
-
-    monkeypatch.setattr(cli_module, "run_qualityscaler", fake_run_qualityscaler)
-
-    assert cli_module.main(["ui"]) == 0
-    assert cli_module.main(["ui", "--webview"]) == 0
-    assert calls == [False, True]
 
 
 def test_main_without_args_proxies_to_runtime_cli(
@@ -247,7 +230,7 @@ def test_run_qualityscaler_pipes_subprocess_output_to_log_file(
 
     assert len(open_calls) == 1
     _, command, process_args = open_calls[0]
-    assert command == ["python", "-u", "-m", "qualityscaler.QualityScaler"]
+    assert command == ["python", "-u", "-m", "qualityscaler.webview"]
     assert process_args["stdout"] is subprocess.PIPE
     assert process_args["stderr"] == subprocess.STDOUT
 
@@ -388,6 +371,15 @@ def test_runtime_lock_includes_pillow_for_app_images(cli_module: Any) -> None:
     assert "moviepy==" not in lock_text
     assert "imageio==" not in lock_text
     assert "imageio-ffmpeg==" not in lock_text
+
+
+def test_runtime_lock_has_no_gui_toolkit_pins(cli_module: Any) -> None:
+    """The CTk GUI was deleted in issue #65 phase 5; pywebview is the GUI dep."""
+    lock_text = cli_module._runtime_lock_text()
+    assert "customtkinter" not in lock_text
+    assert "darkdetect" not in lock_text
+    assert "pywebview==" in lock_text
+    assert "websockets==" in lock_text
 
 
 def test_runtime_lock_includes_static_ffmpeg(cli_module: Any) -> None:

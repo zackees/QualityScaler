@@ -17,7 +17,7 @@ from qualityscaler.app.media_info import (
     format_resolution_projection,
 )
 
-MEDIA_INFO_SOURCE = Path(__file__).resolve().parent.parent / "src" / "qualityscaler" / "gui" / "media_info.py"
+MEDIA_INFO_SOURCE = Path(__file__).resolve().parent.parent / "src" / "qualityscaler" / "app" / "media_info.py"
 
 
 @pytest.mark.parametrize(

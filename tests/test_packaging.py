@@ -47,8 +47,10 @@ def test_wheel_contains_all_packages(tmp_path: Path) -> None:
         "qualityscaler/runtime_wheel.py",
         "qualityscaler/requirements.runtime.lock.txt",
         "qualityscaler/core/pipeline.py",
-        "qualityscaler/gui/app.py",
-        "qualityscaler/gui/ff_panel.py",
+        "qualityscaler/app/state.py",
+        "qualityscaler/app/controllers/upscale.py",
+        "qualityscaler/webview/host.py",
+        "qualityscaler/webview/assets/index.html",
         "qualityscaler/fluidframes/pipeline.py",
         "qualityscaler/_vendor/iso_env/api.py",
     ]

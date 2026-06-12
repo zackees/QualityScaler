@@ -1,11 +1,13 @@
 """Thin launcher shim kept for entry-point compatibility.
 
-The GUI implementation lives in :mod:`qualityscaler.gui`. This file must keep
-existing so ``python -m qualityscaler.QualityScaler`` (used by cli.py) and the
-checkout-root detection keep working.
+The GUI implementation lives in :mod:`qualityscaler.webview`. This file must
+keep existing so ``python -m qualityscaler.QualityScaler`` (historical launch
+module) and the checkout-root detection in cli.py keep working.
 """
 
-from qualityscaler.gui.app import main
+import sys
+
+from qualityscaler.webview.host import main
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
