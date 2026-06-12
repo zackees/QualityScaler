@@ -11,6 +11,7 @@ stream over the loopback WebSocket (see :mod:`qualityscaler.webview.ws`).
 
 from __future__ import annotations
 
+import sys
 import webbrowser
 from dataclasses import asdict, fields
 from os.path import basename as os_path_basename
@@ -352,6 +353,9 @@ class PyApi:
         return True
 
     # Misc ---------------------------
+
+    def report_renderer_error(self, message: str) -> None:
+        print(f"[renderer-error] {message}", file=sys.stderr)
 
     def get_ws_url(self) -> str:
         if self._ws is None:

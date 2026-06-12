@@ -311,6 +311,12 @@ def test_open_external_rejects_non_http(api) -> None:
         api.open_external("javascript:alert(1)")
 
 
+def test_report_renderer_error_logs_to_stderr(api, capsys) -> None:
+    api.report_renderer_error("TypeError: boom (index.js:1:1)")
+    captured = capsys.readouterr()
+    assert "[renderer-error] TypeError: boom (index.js:1:1)" in captured.err
+
+
 def test_open_external_opens_http(api, monkeypatch) -> None:
     opened: list[str] = []
     import qualityscaler.webview.js_api as js_api_module

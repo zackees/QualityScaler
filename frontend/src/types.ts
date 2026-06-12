@@ -48,6 +48,7 @@ export interface QsApi {
   stop_framegen(): Promise<boolean>;
   get_ws_url(): Promise<string>;
   open_external(url: string): Promise<void>;
+  report_renderer_error(message: string): Promise<void>;
 }
 
 declare global {

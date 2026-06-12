@@ -23,6 +23,9 @@ def test_pyproject_declares_uv_cache_keys() -> None:
     assert "cache-keys" in text
     assert 'file = "src/**/*.py"' in text
     assert 'file = "pyproject.toml"' in text
+    assert 'file = "src/**/*.html"' in text
+    assert 'file = "src/**/*.js"' in text
+    assert 'file = "src/**/*.css"' in text
 
 
 @pytest.mark.integration
@@ -56,3 +59,15 @@ def test_wheel_contains_all_packages(tmp_path: Path) -> None:
     ]
     missing = [name for name in expected if name not in names]
     assert not missing, f"wheel is missing: {missing}"
+
+    # The hashed bundle filenames change every build, so match by prefix.
+    hashed_js = [
+        name for name in names
+        if name.startswith("qualityscaler/webview/assets/assets/index-") and name.endswith(".js")
+    ]
+    hashed_css = [
+        name for name in names
+        if name.startswith("qualityscaler/webview/assets/assets/index-") and name.endswith(".css")
+    ]
+    assert hashed_js, "wheel is missing the hashed frontend JS bundle"
+    assert hashed_css, "wheel is missing the hashed frontend CSS bundle"
