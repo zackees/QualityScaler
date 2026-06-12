@@ -74,6 +74,47 @@ class TestConsoleSink:
         sink.put("\x1b[1mbold\x1b[0m")
         assert sink.drain()[0].text == "bold"
 
+    def test_strip_ansi_false_preserves_raw_text(self) -> None:
+        sink = ConsoleSink(strip_ansi=False)
+        sink.put("\x1b[1mbold\x1b[0m")
+        assert sink.drain()[0].text == "\x1b[1mbold\x1b[0m"
+
+    def test_drain_blocking_returns_batched_items(self) -> None:
+        sink = ConsoleSink()
+        sink.put("a")
+        sink.put("b")
+        sink.put("c")
+
+        lines = sink.drain_blocking(timeout=1.0)
+        assert [line.text for line in lines] == ["a", "b", "c"]
+
+    def test_drain_blocking_respects_max_items(self) -> None:
+        sink = ConsoleSink()
+        for i in range(5):
+            sink.put(str(i))
+
+        first = sink.drain_blocking(timeout=1.0, max_items=2)
+        assert [line.text for line in first] == ["0", "1"]
+        assert [line.text for line in sink.drain()] == ["2", "3", "4"]
+
+    def test_drain_blocking_empty_queue_times_out_with_empty_list(self) -> None:
+        sink = ConsoleSink()
+        start = time.monotonic()
+        assert sink.drain_blocking(timeout=0.05) == []
+        assert time.monotonic() - start >= 0.04
+
+    def test_drain_blocking_wakes_on_producer_thread(self) -> None:
+        import threading
+
+        sink = ConsoleSink()
+        timer = threading.Timer(0.05, lambda: sink.put("late"))
+        timer.start()
+        try:
+            lines = sink.drain_blocking(timeout=5.0)
+        finally:
+            timer.cancel()
+        assert [line.text for line in lines] == ["late"]
+
 
 class TestTkStreamRedirector:
     def test_buffers_partial_writes(self) -> None:

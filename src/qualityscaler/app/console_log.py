@@ -70,11 +70,14 @@ def split_terminal_text(text: str) -> tuple[list[tuple[str, bool]], str]:
 class ConsoleSink:
     """Thread-safe, unbounded line queue between producers and the GUI."""
 
-    def __init__(self) -> None:
+    def __init__(self, strip_ansi: bool = True) -> None:
         self._queue: queue.Queue[ConsoleLine] = queue.Queue()
+        self._strip_ansi = strip_ansi
 
     def put(self, text: str, stream: str = STREAM_STDOUT, replace_last: bool = False) -> None:
-        self._queue.put(ConsoleLine(strip_ansi(text), stream, replace_last))
+        if self._strip_ansi:
+            text = strip_ansi(text)
+        self._queue.put(ConsoleLine(text, stream, replace_last))
 
     def drain(self, max_items: int = 200) -> list[ConsoleLine]:
         items: list[ConsoleLine] = []
@@ -83,6 +86,21 @@ class ConsoleSink:
                 items.append(self._queue.get_nowait())
             except queue.Empty:
                 break
+        return items
+
+    def drain_blocking(self, timeout: float, max_items: int = 200) -> list[ConsoleLine]:
+        """Block up to *timeout* seconds for the first line, then drain the rest.
+
+        Returns at most *max_items* lines; returns ``[]`` if nothing arrives
+        before the timeout. Friendly to a polling WebSocket server loop —
+        no asyncio involved.
+        """
+        try:
+            first = self._queue.get(timeout=timeout)
+        except queue.Empty:
+            return []
+        items = [first]
+        items.extend(self.drain(max_items=max_items - 1))
         return items
 
 
