@@ -14,6 +14,7 @@ from qualityscaler.core import (
     UpscaleProgress,
     UpscaleSettings,
     UpscaleStopped,
+    VIDEO_QUALITIES,
     app_version,
 )
 
@@ -42,6 +43,7 @@ def _build_parser() -> argparse.ArgumentParser:
     upscale.add_argument("--image-ext", choices=IMAGE_EXTENSIONS, default=".png", help="Output image extension (default: %(default)s).")
     upscale.add_argument("--video-ext", choices=VIDEO_EXTENSIONS, default=".mp4", help="Output video extension (default: %(default)s).")
     upscale.add_argument("--codec", choices=VIDEO_CODECS, default="x264", help="Video codec for encoded outputs (default: %(default)s).")
+    upscale.add_argument("--video-quality", choices=VIDEO_QUALITIES, default="HIGH", help="Video encoder quality tier (default: %(default)s; HIGH maps to crf 18 on x264).")
     upscale.add_argument("--keep-frames", action="store_true", help="Keep extracted video frames after upscaling.")
     upscale.add_argument("--quiet", "-q", action="store_true", help="Suppress progress output.")
 
@@ -71,6 +73,7 @@ def _run_upscale(parser: argparse.ArgumentParser, args: argparse.Namespace) -> i
         image_extension=args.image_ext,
         video_extension=args.video_ext,
         video_codec=args.codec,
+        video_quality=args.video_quality,
     )
     try:
         settings.validate()

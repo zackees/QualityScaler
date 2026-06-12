@@ -29,6 +29,7 @@ def _make_fake_core(events: list[Any], created_jobs: list[Any]) -> types.ModuleT
         image_extension: str = ".png"
         video_extension: str = ".mp4"
         video_codec: str = "x264"
+        video_quality: str = "HIGH"
 
         def validate(self) -> None:
             if not self.input_paths:
@@ -86,6 +87,7 @@ def _make_fake_core(events: list[Any], created_jobs: list[Any]) -> types.ModuleT
     core.UpscaleStopped = UpscaleStopped
     core.UpscaleJob = UpscaleJob
     core.AI_MODELS = list(FAKE_MODELS)
+    core.VIDEO_QUALITIES = ["LOW", "MEDIUM", "HIGH"]
     core.app_version = lambda: "9.9.9"
     return core
 
@@ -133,6 +135,8 @@ def test_upscale_maps_args_to_settings(runtime_env: Any) -> None:
             ".mkv",
             "--codec",
             "x265",
+            "--video-quality",
+            "MEDIUM",
             "--keep-frames",
             "--quiet",
         ]
@@ -156,6 +160,7 @@ def test_upscale_maps_args_to_settings(runtime_env: Any) -> None:
     assert settings.image_extension == ".jpg"
     assert settings.video_extension == ".mkv"
     assert settings.video_codec == "x265"
+    assert settings.video_quality == "MEDIUM"
 
 
 def test_upscale_defaults(runtime_env: Any) -> None:
@@ -173,6 +178,14 @@ def test_upscale_defaults(runtime_env: Any) -> None:
     assert settings.output_resize_factor == 1.0
     assert settings.blending == "OFF"
     assert settings.keep_frames is False
+    assert settings.video_quality == "HIGH"
+
+
+def test_upscale_rejects_unknown_video_quality(runtime_env: Any) -> None:
+    with pytest.raises(SystemExit) as excinfo:
+        runtime_env.module.main(["upscale", "a.png", "--video-quality", "ULTRA"])
+
+    assert excinfo.value.code == 2
 
 
 def test_upscale_completed_prints_output_paths_to_stdout(

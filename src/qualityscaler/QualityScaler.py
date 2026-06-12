@@ -166,6 +166,7 @@ video_codec_list = [
     "h264_amf",   "hevc_amf",   MENU_LIST_SEPARATOR[0],
     "h264_qsv",   "hevc_qsv",
     ]
+video_quality_list     = [ "LOW", "MEDIUM", "HIGH" ]
 
 OUTPUT_PATH_CODED    = "Same path as input files"
 DOCUMENT_PATH        = os_path_join(os_path_expanduser('~'), 'Documents')
@@ -978,6 +979,7 @@ def upscale_button_command() -> None:
     global selected_image_extension
     global selected_video_extension
     global selected_video_codec
+    global selected_video_quality
     global tiles_resolution
     global input_resize_factor
     global output_resize_factor
@@ -1004,6 +1006,7 @@ def upscale_button_command() -> None:
             image_extension      = selected_image_extension,
             video_extension      = selected_video_extension,
             video_codec          = selected_video_codec,
+            video_quality        = selected_video_quality,
         )
 
         try:
@@ -1230,6 +1233,10 @@ def select_video_extension_from_menu(selected_option: str) -> None:
 def select_video_codec_from_menu(selected_option: str) -> None:
     global selected_video_codec
     selected_video_codec = selected_option
+
+def select_video_quality_from_menu(selected_option: str) -> None:
+    global selected_video_quality
+    selected_video_quality = selected_option
 
 
 
@@ -1757,6 +1764,38 @@ def place_video_codec_keep_frames_menus() -> None:
     info_button.place(relx = column_info2,      rely = widget_row, anchor = "center")
     option_menu.place(relx = column_2_9, rely = widget_row, anchor = "center")
 
+def place_video_quality_menu() -> None:
+
+    def open_info_video_quality():
+        option_list = [
+            "\n LOW \n" +
+            " Smaller files, visibly lower quality \n",
+
+            "\n MEDIUM \n" +
+            " Balanced size and quality \n",
+
+            "\n HIGH \n" +
+            " Best quality, larger files (x264 crf 18) \n"
+        ]
+
+        MessageBox(
+            messageType   = "info",
+            title         = "Video quality",
+            subtitle      = "This widget allows to choose the video encoder quality",
+            default_value = None,
+            option_list   = option_list
+        )
+
+    widget_row = row8
+
+    background = create_option_background()
+    background.place(relx = 0.75, rely = widget_row, relwidth = 0.48, anchor = "center")
+
+    info_button = create_info_button(open_info_video_quality, "Video quality")
+    option_menu = create_option_menu(select_video_quality_from_menu, video_quality_list, default_video_quality, width = little_menu_width)
+    info_button.place(relx = column_info1,        rely = widget_row, anchor = "center")
+    option_menu.place(relx = column_1_4, rely = widget_row, anchor = "center")
+
 def place_output_path_textbox() -> None:
 
     def open_info_output_path():
@@ -1857,6 +1896,7 @@ def save_user_choices_in_json() -> None:
     global selected_image_extension
     global selected_video_extension
     global selected_video_codec
+    global selected_video_quality
     global tiles_resolution
     global input_resize_factor
 
@@ -1866,6 +1906,7 @@ def save_user_choices_in_json() -> None:
     image_extension_to_save = selected_image_extension
     video_extension_to_save = selected_video_extension
     video_codec_to_save     = selected_video_codec
+    video_quality_to_save   = selected_video_quality
     blending_to_save        = {0: "OFF", 0.3: "Low", 0.5: "Medium", 0.7: "High"}.get(selected_blending_factor)
 
     keep_frames_to_save = "OFF"
@@ -1883,6 +1924,7 @@ def save_user_choices_in_json() -> None:
         "default_image_extension":      image_extension_to_save,
         "default_video_extension":      video_extension_to_save,
         "default_video_codec":          video_codec_to_save,
+        "default_video_quality":        video_quality_to_save,
         "default_blending":             blending_to_save,
         "default_output_path":          selected_output_path.get(),
         "default_input_resize_factor":  str(selected_input_resize_factor.get()),
@@ -1927,6 +1969,7 @@ class App():
         place_gpu_gpuVRAM_menus()
         place_image_video_output_menus()
         place_video_codec_keep_frames_menus()
+        place_video_quality_menu()
         place_output_path_textbox()
 
         place_message_label()
@@ -1972,6 +2015,7 @@ if __name__ == "__main__":
             default_image_extension      = json_data.get("default_image_extension",      image_extension_list[0])
             default_video_extension      = json_data.get("default_video_extension",      video_extension_list[0])
             default_video_codec          = json_data.get("default_video_codec",          video_codec_list[0])
+            default_video_quality        = json_data.get("default_video_quality",        "HIGH")
             default_blending             = json_data.get("default_blending",             blending_list[1])
             default_output_path          = json_data.get("default_output_path",          OUTPUT_PATH_CODED)
             default_input_resize_factor  = json_data.get("default_input_resize_factor",  str(50))
@@ -1987,6 +2031,7 @@ if __name__ == "__main__":
         default_image_extension      = image_extension_list[0]
         default_video_extension      = video_extension_list[0]
         default_video_codec          = video_codec_list[0]
+        default_video_quality        = "HIGH"
         default_blending             = blending_list[1]
         default_output_path          = OUTPUT_PATH_CODED
         default_input_resize_factor  = str(50)
@@ -2019,6 +2064,7 @@ if __name__ == "__main__":
     global selected_image_extension
     global selected_video_extension
     global selected_video_codec
+    global selected_video_quality
     global tiles_resolution
     global input_resize_factor
 
@@ -2029,6 +2075,7 @@ if __name__ == "__main__":
     selected_image_extension = default_image_extension
     selected_video_extension = default_video_extension
     selected_video_codec     = default_video_codec
+    selected_video_quality   = default_video_quality
 
     if default_AI_multithreading == "OFF":
         selected_AI_multithreading = 1
