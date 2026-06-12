@@ -41,6 +41,7 @@ from qualityscaler.gui.ff_constants import (
     generation_options_list,
 )
 from qualityscaler.gui.ff_controller import FrameGenController, build_settings, validate
+from qualityscaler.gui.file_chooser import get_initial_dir, update_last_used_dir
 from qualityscaler.gui.ff_info_texts import (
     FF_AI_MODEL_INFO,
     FF_CPU_INFO,
@@ -209,8 +210,9 @@ class FluidFramesPanel:
 
         self.info_message.set("Selecting files")
 
-        uploaded_files_list    = list(filedialog.askopenfilenames())
+        uploaded_files_list    = list(filedialog.askopenfilenames(initialdir=get_initial_dir()))
         uploaded_files_counter = len(uploaded_files_list)
+        update_last_used_dir(uploaded_files_list)
 
         supported_files_list    = check_supported_selected_files(uploaded_files_list)
         supported_files_counter = len(supported_files_list)
@@ -242,10 +244,11 @@ class FluidFramesPanel:
         self.place_loadFile_section()
 
     def open_output_path_action(self) -> None:
-        asked_selected_output_path = filedialog.askdirectory()
+        asked_selected_output_path = filedialog.askdirectory(initialdir=get_initial_dir())
         if asked_selected_output_path == "":
             self.selected_output_path.set(OUTPUT_PATH_CODED)
         else:
+            update_last_used_dir(asked_selected_output_path)
             self.selected_output_path.set(asked_selected_output_path)
 
     # Menu select handlers ---------------------------

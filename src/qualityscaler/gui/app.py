@@ -84,6 +84,7 @@ from qualityscaler.gui.info_texts import (
 )
 from qualityscaler.gui.ff_controller import FrameGenController
 from qualityscaler.gui.ff_panel import FluidFramesPanel
+from qualityscaler.gui.file_chooser import get_initial_dir, update_last_used_dir
 from qualityscaler.gui.ff_preferences import FF_USER_PREFERENCE_PATH, load_ff_preferences
 from qualityscaler.gui.preferences import USER_PREFERENCE_PATH, load_preferences, save_preferences
 from qualityscaler.gui.state import UIState, upscale_factor_for_model
@@ -323,8 +324,9 @@ class App():
 
         self.info_message.set("Selecting files")
 
-        uploaded_files_list    = list(filedialog.askopenfilenames())
+        uploaded_files_list    = list(filedialog.askopenfilenames(initialdir=get_initial_dir()))
         uploaded_files_counter = len(uploaded_files_list)
+        update_last_used_dir(uploaded_files_list)
 
         supported_files_list    = check_supported_selected_files(uploaded_files_list)
         supported_files_counter = len(supported_files_list)
@@ -356,10 +358,11 @@ class App():
         self.place_loadFile_section()
 
     def open_output_path_action(self) -> None:
-        asked_selected_output_path = filedialog.askdirectory()
+        asked_selected_output_path = filedialog.askdirectory(initialdir=get_initial_dir())
         if asked_selected_output_path == "":
             self.selected_output_path.set(OUTPUT_PATH_CODED)
         else:
+            update_last_used_dir(asked_selected_output_path)
             self.selected_output_path.set(asked_selected_output_path)
 
     # Menu select handlers ---------------------------
