@@ -45,6 +45,7 @@ class UIState:
     input_resize_factor: str = "50"
     output_resize_factor: str = "100"
     vram_limiter: str = "4"
+    file_list: list = field(default_factory=list)
 
 
 def multithreading_from_label(label: str) -> int:

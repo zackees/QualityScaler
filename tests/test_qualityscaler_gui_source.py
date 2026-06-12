@@ -4,14 +4,11 @@ import ast
 from pathlib import Path
 
 
-GUI_SOURCE = Path(__file__).resolve().parents[1] / "src" / "qualityscaler" / "QualityScaler.py"
+GUI_SOURCE = Path(__file__).resolve().parents[1] / "src" / "qualityscaler" / "gui" / "app.py"
 
 
 def _get_app_method(method_name: str) -> ast.FunctionDef:
-    source = GUI_SOURCE.read_text(encoding="utf-8")
-    app_start = source.index("class App():")
-    app_end = source.index("# Main functions", app_start)
-    tree = ast.parse(source[app_start:app_end])
+    tree = ast.parse(GUI_SOURCE.read_text(encoding="utf-8"))
     app_class = next(node for node in tree.body if isinstance(node, ast.ClassDef) and node.name == "App")
     return next(node for node in app_class.body if isinstance(node, ast.FunctionDef) and node.name == method_name)
 
