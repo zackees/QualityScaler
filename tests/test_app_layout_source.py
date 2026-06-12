@@ -7,31 +7,34 @@ from pathlib import Path
 SRC_ROOT = Path(__file__).resolve().parents[1] / "src" / "qualityscaler"
 SHIM_SOURCE = SRC_ROOT / "QualityScaler.py"
 GUI_DIR = SRC_ROOT / "gui"
-WORKER_SOURCE = GUI_DIR / "worker.py"
-CONSTANTS_SOURCE = GUI_DIR / "constants.py"
+APP_DIR = SRC_ROOT / "app"
+WORKER_SOURCE = APP_DIR / "workers" / "upscale.py"
+CONSTANTS_SOURCE = APP_DIR / "constants.py"
 
-GUI_SOURCES = sorted(GUI_DIR.glob("*.py")) + [SHIM_SOURCE]
+APP_AND_GUI_SOURCES = (
+    sorted(GUI_DIR.glob("*.py")) + sorted(APP_DIR.rglob("*.py")) + [SHIM_SOURCE]
+)
 
 TOOLKIT_FREE_SOURCES = [
-    GUI_DIR / name
-    for name in (
-        "__init__.py",
-        "assets.py",
-        "constants.py",
-        "controller.py",
-        "ff_constants.py",
-        "ff_controller.py",
-        "ff_info_texts.py",
-        "ff_preferences.py",
-        "ff_state.py",
-        "ff_worker.py",
-        "file_chooser.py",
-        "info_texts.py",
-        "media_info.py",
-        "preferences.py",
-        "state.py",
-        "worker.py",
-    )
+    APP_DIR / "__init__.py",
+    APP_DIR / "assets.py",
+    APP_DIR / "constants.py",
+    APP_DIR / "controllers" / "__init__.py",
+    APP_DIR / "controllers" / "upscale.py",
+    APP_DIR / "controllers" / "framegen.py",
+    APP_DIR / "ff_constants.py",
+    APP_DIR / "ff_info_texts.py",
+    APP_DIR / "ff_preferences.py",
+    APP_DIR / "ff_state.py",
+    APP_DIR / "file_chooser.py",
+    APP_DIR / "info_texts.py",
+    APP_DIR / "media_info.py",
+    APP_DIR / "preferences.py",
+    APP_DIR / "state.py",
+    APP_DIR / "workers" / "__init__.py",
+    APP_DIR / "workers" / "upscale.py",
+    APP_DIR / "workers" / "framegen.py",
+    GUI_DIR / "__init__.py",
 ]
 
 
@@ -44,7 +47,7 @@ def _tree(path: Path) -> ast.Module:
 
 
 def test_pipeline_code_removed_from_gui() -> None:
-    for path in GUI_SOURCES:
+    for path in APP_AND_GUI_SOURCES:
         source = _source(path)
         tree = ast.parse(source)
 
@@ -66,7 +69,7 @@ def test_pipeline_code_removed_from_gui() -> None:
 
 def test_gui_imports_core_contract() -> None:
     core_imports: set[str] = set()
-    for path in GUI_SOURCES:
+    for path in APP_AND_GUI_SOURCES:
         for node in ast.walk(_tree(path)):
             if isinstance(node, ast.ImportFrom) and node.module == "qualityscaler.core":
                 core_imports.update(alias.name for alias in node.names)

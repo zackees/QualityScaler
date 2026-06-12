@@ -1,4 +1,4 @@
-"""Unit tests for qualityscaler.gui.file_chooser.
+"""Unit tests for qualityscaler.app.file_chooser.
 
 The module is toolkit-free and can be exercised headlessly.
 """
@@ -13,7 +13,7 @@ from pathlib import Path
 def _fresh_module():
     """Re-import file_chooser with a clean module state so each test starts
     with _last_used_dir = None.  We do this by reloading the module."""
-    import qualityscaler.gui.file_chooser as m
+    import qualityscaler.app.file_chooser as m
     importlib.reload(m)
     return m
 

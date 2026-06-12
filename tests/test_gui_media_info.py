@@ -1,4 +1,4 @@
-"""Headless tests for qualityscaler.gui.media_info.
+"""Headless tests for qualityscaler.app.media_info.
 
 The module keeps its cv2/numpy imports lazy, so the pure helpers
 (extension detection, resolution-projection formatting) are testable
@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from qualityscaler.gui.media_info import (
+from qualityscaler.app.media_info import (
     check_if_file_is_video,
     format_resolution_projection,
 )

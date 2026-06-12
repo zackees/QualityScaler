@@ -3,8 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from qualityscaler.gui.preferences import load_preferences, save_preferences
-from qualityscaler.gui.state import UIState
+from qualityscaler.app.preferences import load_preferences, save_preferences
+from qualityscaler.app.state import UIState
 
 
 EXPECTED_JSON_KEYS = {

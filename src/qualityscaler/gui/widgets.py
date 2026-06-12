@@ -33,9 +33,9 @@ from customtkinter import (
     CTkToplevel,
 )
 
-from qualityscaler.gui.assets import find_by_relative_path
-from qualityscaler.gui.constants import background_color, text_color, widget_background_color
-from qualityscaler.gui.media_info import check_if_file_is_video, describe_file, image_read
+from qualityscaler.app.assets import find_by_relative_path
+from qualityscaler.app.constants import background_color, text_color, widget_background_color
+from qualityscaler.app.media_info import check_if_file_is_video, describe_file, image_read
 
 
 @dataclass

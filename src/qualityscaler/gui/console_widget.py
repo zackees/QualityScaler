@@ -6,7 +6,7 @@ from typing import Callable, Sequence
 
 from customtkinter import CTkButton, CTkFrame, CTkLabel, CTkTextbox
 
-from qualityscaler.gui.console_log import (
+from qualityscaler.app.console_log import (
     STREAM_INFO,
     STREAM_STDERR,
     ConsoleLine,
