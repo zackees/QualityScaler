@@ -44,6 +44,7 @@ def test_wheel_contains_all_packages(tmp_path: Path) -> None:
         "qualityscaler/QualityScaler.py",
         "qualityscaler/cli.py",
         "qualityscaler/cli_runtime.py",
+        "qualityscaler/runtime_wheel.py",
         "qualityscaler/requirements.runtime.lock.txt",
         "qualityscaler/core/pipeline.py",
         "qualityscaler/gui/app.py",

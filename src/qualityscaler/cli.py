@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import IO
 
 from qualityscaler._vendor.iso_env import IsoEnv, IsoEnvArgs, Requirements
+from qualityscaler.runtime_wheel import build_installed_wheel
 
 RUNTIME_ENV_VAR = "QUALITYSCALER_RUNTIME_ENV"
 RUNTIME_TIMEOUT_ENV_VAR = "QUALITYSCALER_LAUNCH_TIMEOUT_SECONDS"
@@ -57,10 +58,21 @@ def _source_checkout_root() -> Path | None:
     return None
 
 
+def _self_wheel_cache_dir() -> Path:
+    return _default_runtime_env_path().parent / "self-wheel"
+
+
 def _self_requirement() -> str:
     checkout_root = _source_checkout_root()
     if checkout_root is not None:
         return f"{PACKAGE_DIST_NAME} @ {checkout_root.as_uri()}"
+
+    # Outside a checkout the index wheel at the installed version may be a
+    # different (older) artifact than the locally installed code (see #55),
+    # so re-pack the installed distribution instead of trusting the index.
+    wheel_path = build_installed_wheel(_self_wheel_cache_dir())
+    if wheel_path is not None:
+        return f"{PACKAGE_DIST_NAME} @ {wheel_path.as_uri()}"
 
     try:
         installed_version = version(PACKAGE_MODULE_NAME)
