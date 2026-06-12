@@ -345,6 +345,11 @@ def test_tee_stream_writes_to_all_destinations(cli_module: Any) -> None:
     assert dest_b.getvalue() == expected
 
 
+def test_runtime_python_version_has_wheels_for_all_pins(cli_module: Any) -> None:
+    """onnxruntime-directml 1.24.4 ships cp311+ only; pillow 9.5.0 tops out at cp311."""
+    assert cli_module.RUNTIME_PYTHON_VERSION == "==3.11.*"
+
+
 def test_runtime_lock_pins_numpy_below_2(cli_module: Any) -> None:
     """Keep the ONNX Runtime / OpenCV stack on NumPy 1.x."""
     lock_text = cli_module._runtime_lock_text()
@@ -353,7 +358,7 @@ def test_runtime_lock_pins_numpy_below_2(cli_module: Any) -> None:
 
 
 def test_runtime_lock_pins_opencv_before_numpy2_requirement(cli_module: Any) -> None:
-    """opencv-python-headless 4.12+ requires numpy 2.x on Python 3.10."""
+    """opencv-python-headless 4.12+ requires numpy 2.x."""
     lock_text = cli_module._runtime_lock_text()
     assert "opencv-python-headless==4.11.0.86" in lock_text
     assert "opencv-python-headless==4.12" not in lock_text

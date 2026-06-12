@@ -21,7 +21,9 @@ from qualityscaler._vendor.iso_env import IsoEnv, IsoEnvArgs, Requirements
 RUNTIME_ENV_VAR = "QUALITYSCALER_RUNTIME_ENV"
 RUNTIME_TIMEOUT_ENV_VAR = "QUALITYSCALER_LAUNCH_TIMEOUT_SECONDS"
 RUNTIME_LOG_DIR_ENV_VAR = "QUALITYSCALER_LOG_DIR"
-RUNTIME_PYTHON_VERSION = "==3.10.*"
+# 3.11 is the only version with wheels for every runtime pin:
+# onnxruntime-directml 1.24.4 ships cp311+ only; pillow 9.5.0 ships up to cp311.
+RUNTIME_PYTHON_VERSION = "==3.11.*"
 RUNTIME_LOCK_FILE = "requirements.runtime.lock.txt"
 PACKAGE_DIST_NAME = "quality-scaler"
 PACKAGE_MODULE_NAME = "quality_scaler"
@@ -65,7 +67,7 @@ def _default_runtime_env_path() -> Path:
         base = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
     else:
         base = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache"))
-    return base / "QualityScaler" / "runtime-py310"
+    return base / "QualityScaler" / "runtime-py311"
 
 
 def _default_log_dir(env: Mapping[str, str] | None = None) -> Path:
